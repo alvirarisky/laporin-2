@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import axios from 'axios'; // Import axios
 
-// Komponen Chibi Playground (Diambil dari kode Anda sebelumnya, sedikit penyesuaian)
-const ChibiPlayground = ({ cssCode = '', instruction = '...', isHappy = false, hasIceCream = false }) => {
-    // Fungsi parse CSS tetap sama
-    const parseCssCode = (cssString) => {
+// --- PERBAIKAN: Path Aset Chibi ---
+// Pastikan path ini benar relatif terhadap folder public
+const assetPath = '/assets/chibi/'; // Ganti jika path beda
+const chibiDefault = assetPath + 'chibi-default.png';
+const chibiHappy = assetPath + 'chibi-happy.png';
+const chibiSad = assetPath + 'chibi-sad.png'; // Tambah Chibi Sedih
+const iceCream = assetPath + 'ice-cream.png';
+
+// Komponen Playground (Sama seperti sebelumnya, pastikan props sesuai)
+const ChibiPlayground = ({ cssCode = '', setupHtml = '', targetCss = '', chibiState = 'default', showIceCream = false, gameComplete = false }) => {
+    const parseCssCode = (cssString) => { /* ... (fungsi parse CSS tidak berubah) ... */
         const style = {};
-        (cssString || '').split(';').forEach(rule => { // Tambahkan pengecekan null/undefined
+        (cssString || '').split(';').forEach(rule => {
             const parts = rule.trim().split(':');
             if (parts.length === 2) {
                 const cssProp = parts[0].trim().replace(/-([a-z])/g, (g) => g[1].toUpperCase());
@@ -16,20 +24,49 @@ const ChibiPlayground = ({ cssCode = '', instruction = '...', isHappy = false, h
         });
         return style;
     };
-    const pondStyle = { display: 'flex', minHeight: '200px', border: '2px solid #3b82f6', borderRadius: '8px', backgroundColor: '#e0f2fe', ...parseCssCode(cssCode) };
-    const chibiSrc = `/images/${isHappy ? 'chibi-happy.png' : 'chibi-default.png'}`;
-    const chibiClass = `transition-transform duration-500 ${isHappy ? 'animate-bounce' : ''}`;
-    const iceCreamSrc = '/images/ice-cream.png';
+
+    const pondStyle = { /* ... (style pond tidak berubah) ... */
+        display: 'flex',
+        minHeight: '200px',
+        border: '2px solid #3b82f6',
+        borderRadius: '8px',
+        backgroundColor: '#e0f2fe',
+        position: 'relative',
+        overflow: 'hidden',
+        ...parseCssCode(cssCode)
+    };
+    const targetStyle = { /* ... (style target tidak berubah) ... */
+        position: 'absolute', width: '50px', height: '50px', zIndex: 10,
+        ...parseCssCode(targetCss)
+    };
+
+    let chibiSrc;
+    switch (chibiState) {
+        case 'happy': chibiSrc = chibiHappy; break;
+        case 'sad': chibiSrc = chibiSad; break;
+        default: chibiSrc = chibiDefault;
+    }
+    const chibiClass = `transition-transform duration-500 ${chibiState === 'happy' ? 'animate-bounce' : ''}`;
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-inner mb-6">
-            <p className="text-sm font-semibold mb-3 text-indigo-700">Instruksi: <span className="text-gray-600">{instruction}</span></p>
-            <div className="relative p-2" style={pondStyle}>
-                <img src={iceCreamSrc} alt="Target" className="w-10 h-10 absolute right-2 bottom-2" style={{ zIndex: 10 }} onError={(e) => { e.target.src = "https://placehold.co/40x40/f43f5e/ffffff?text=🍦" }} />
-                <img src={chibiSrc} alt="Chibi" className={chibiClass} style={{ width: '40px', height: '40px', zIndex: 20 }} onError={(e) => { e.target.src = "https://placehold.co/40x40/1d4ed8/ffffff?text=C" }} />
-                {hasIceCream && (
-                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-inner mb-6 relative">
+             <div className="relative" style={pondStyle}>
+                 {/* Setup HTML dari backend */}
+                 {setupHtml && <div dangerouslySetInnerHTML={{ __html: setupHtml }} className="flex items-end w-full h-full"></div>}
+
+                 {/* Chibi (Jika tidak ada di setupHtml) */}
+                 {!setupHtml?.includes('class="chibi"') && (
+                     <img src={chibiSrc} alt="Chibi" className={chibiClass} style={{ width: '50px', height: '50px', zIndex: 20 }} />
+                 )}
+
+                 {/* Target (Es Krim) - Tampilkan jika showIceCream true */}
+                 {showIceCream && <img src={iceCream} alt="Target" style={targetStyle} />}
+
+                 {/* Efek saat game selesai */}
+                 {gameComplete && (
+                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black bg-opacity-50 rounded-lg">
                          <span className="text-6xl animate-ping">🎉</span>
+                         <span className="text-white text-2xl font-bold absolute bottom-5">Level Selesai!</span>
                      </div>
                  )}
             </div>
@@ -37,129 +74,238 @@ const ChibiPlayground = ({ cssCode = '', instruction = '...', isHappy = false, h
     );
 };
 
+
 // --- Komponen Utama Game ---
-export default function Game({ auth, game }) { // Terima 'game' dari props Controller
-    const levels = game?.levels || []; // Ambil data level dari props 'game'
-    const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
-    const [isHappy, setIsHappy] = useState(false);
-    const [hasIceCream, setHasIceCream] = useState(false);
-    const [message, setMessage] = useState('');
+export default function Game({ auth, game, startLevelIndex }) { // Terima 'game' & 'startLevelIndex' dari props
+    // --- PERBAIKAN: State Management ---
+    const [levels, setLevels] = useState([]);
+    const [currentLevelIndex, setCurrentLevelIndex] = useState(startLevelIndex || 0); // Mulai dari index yg dikirim backend
+    const [userAnswer, setUserAnswer] = useState('');
+    const [chibiState, setChibiState] = useState('default'); // 'default', 'happy', 'sad'
+    const [showIceCream, setShowIceCream] = useState(false); // Untuk reward visual
+    const [feedbackMessage, setFeedbackMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false); // Loading saat cek jawaban
+    const [levelComplete, setLevelComplete] = useState(false); // Animasi per level
+    const [allLevelsComplete, setAllLevelsComplete] = useState(false); // Popup akhir
 
-    // Gunakan useForm untuk editor
-    const { data, setData } = useForm({
-        userCode: '',
-    });
+    // --- PERBAIKAN: Ambil Level dari Props (Bukan Fetch) ---
+    useEffect(() => {
+        if (game && game.levels && game.levels.length > 0) {
+            setLevels(game.levels);
+            // Index awal sudah di-set dari props 'startLevelIndex'
+            // setCurrentLevelIndex(startLevelIndex || 0); // Tidak perlu set lagi di sini
+        } else {
+            setFeedbackMessage("Gagal memuat level. Data tidak ditemukan.");
+        }
+    }, [game]); // Re-run jika game berubah
 
-    const currentLevel = levels[currentLevelIndex]; // Gunakan level dari props
+    const currentLevel = levels[currentLevelIndex];
 
-    // Set kode awal saat level berubah
+    // --- Reset State saat Level Berubah ---
     useEffect(() => {
         if (currentLevel) {
-            // Gunakan initial_code dari data level
-            setData('userCode', currentLevel.initial_code || '/* Tulis kode CSS di sini */');
-            setMessage('');
-            setIsHappy(false);
-            setHasIceCream(false);
+            setUserAnswer(currentLevel.initial_code || ''); // Kode awal dari backend
+            setFeedbackMessage('');
+            setChibiState('default');
+            setShowIceCream(false);
+            setLevelComplete(false);
+            setAllLevelsComplete(false); // Reset popup akhir juga
         }
-    }, [currentLevelIndex, currentLevel]); // Tambahkan currentLevel sebagai dependency
+        // Pastikan currentLevelIndex tidak out of bounds setelah reset
+        if (currentLevelIndex >= levels.length && levels.length > 0) {
+             setCurrentLevelIndex(levels.length - 1);
+        }
 
-    const checkAnswer = () => {
-        if (!currentLevel) return;
+    }, [currentLevelIndex, levels]); // Jalankan saat index atau data levels berubah
 
-        // Gunakan solution_code dari data level
-        const solution = currentLevel.solution_code?.replace(/\s+/g, '').toLowerCase() || '';
-        const input = data.userCode.replace(/\s+/g, '').toLowerCase();
+    // --- PERBAIKAN: Fungsi Cek Jawaban (Pakai Axios ke API) ---
+    const checkAnswer = async () => {
+        if (!currentLevel || isLoading) return;
 
-        // Cek sederhana: apakah input mengandung semua bagian solusi
-        const isCorrect = solution.split(';').filter(Boolean).every(part => input.includes(part));
+        setIsLoading(true);
+        setFeedbackMessage('Memeriksa jawaban...');
+        setChibiState('default'); // Kembali ke default saat loading
+        setShowIceCream(false);
 
-        if (isCorrect) {
-            setIsHappy(true);
-            setHasIceCream(true);
-            setMessage(`Benar! +${currentLevel.exp_reward || 20} EXP 🍦`);
-            setTimeout(() => {
-                setHasIceCream(false);
-                if (currentLevelIndex < levels.length - 1) {
-                    setCurrentLevelIndex(prev => prev + 1);
-                } else {
-                    setMessage('Selamat! Semua level selesai!');
+        try {
+            // Panggil API checkAnswer
+            const response = await axios.post(route('api.game.checkAnswer'), {
+                level_id: currentLevel.id,
+                user_answer: userAnswer,
+            });
+
+            const { success, message } = response.data;
+
+            if (success) {
+                setChibiState('happy');
+                setShowIceCream(true); // Tampilkan es krim
+                setLevelComplete(true); // Animasi level selesai
+                setFeedbackMessage(message || `Benar! ✨ Level ${currentLevel.level} Selesai!`);
+
+                // --- Pindah Level atau Selesai ---
+                setTimeout(() => {
+                    const nextLevelIndex = currentLevelIndex + 1;
+                    if (nextLevelIndex < levels.length) {
+                        setCurrentLevelIndex(nextLevelIndex);
+                        // State akan di-reset oleh useEffect [currentLevelIndex, levels]
+                    } else {
+                        // Semua level selesai
+                        setFeedbackMessage('🎉 Chibi berhasil mendapatkan ice cream! +20 EXP');
+                        setAllLevelsComplete(true); // Tampilkan popup akhir
+                    }
+                }, 2500); // Tunggu 2.5 detik
+
+            } else {
+                setChibiState('sad'); // Chibi sedih
+                setShowIceCream(false);
+                setFeedbackMessage(message || 'Jawaban Salah. Coba lagi! 🤔');
+                // Animasi shake (opsional)
+                const editor = document.getElementById('editor');
+                if (editor) {
+                    editor.classList.add('animate-shake');
+                    setTimeout(() => editor.classList.remove('animate-shake'), 500);
                 }
-            }, 2000);
-        } else {
-            setIsHappy(false);
-            setMessage('Jawaban Salah. Coba lagi!');
+            }
+
+        } catch (error) {
+            console.error("Check Answer Error:", error);
+            setChibiState('sad');
+            setFeedbackMessage("Oops, terjadi kesalahan saat memeriksa jawaban.");
+            // Tampilkan detail error jika dari backend (misal: validasi)
+             if (error.response && error.response.data && error.response.data.message) {
+                 setFeedbackMessage(`Error: ${error.response.data.message}`);
+             }
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const resetLevel = () => {
+    // Fungsi Reset Kode (Sama)
+    const resetLevel = () => { /* ... (fungsi reset tidak berubah) ... */
         if (currentLevel) {
-            // Gunakan initial_code dari data level
-            setData('userCode', currentLevel.initial_code || '');
-            setMessage('');
-            setIsHappy(false);
+            setUserAnswer(currentLevel.initial_code || '');
+            setFeedbackMessage('');
+            setChibiState('default');
+            setLevelComplete(false);
+            setShowIceCream(false);
         }
     }
 
-    // Tampilan jika data level belum siap atau sudah selesai
-    if (!levels.length || !currentLevel) {
-        return (
-             <AuthenticatedLayout user={auth.user} header={<h2 className="font-semibold text-xl">{game?.title || "Memuat Game..."}</h2>}>
-                <Head title={game?.title || "Memuat..."} />
-                <div className="py-12"><div className="max-w-4xl mx-auto text-center"><p>Memuat level game atau semua level telah selesai...</p> <Link href={route('questify.index')}>Kembali ke Lobby</Link></div></div>
-            </AuthenticatedLayout>
-        );
-    }
+    // Tampilan Loading Awal (jika perlu, tapi data harusnya sudah ada di props)
+    // if (!game || !levels.length) { ... }
 
+    // Tampilan Jika Tidak Ada Level (Harusnya sudah ditangani useEffect)
+     if (!levels.length && !isLoading) { /* ... (tampilan error/kembali ke lobby) ... */
+         return (
+             <AuthenticatedLayout user={auth.user} header={<h2 className="font-semibold text-xl text-gray-800">{game?.title || "Error"}</h2>}>
+                 <Head title={game?.title || "Error"} />
+                 <div className="py-12"><div className="max-w-4xl mx-auto text-center">
+                     <p className="text-red-600 font-semibold">{feedbackMessage || "Tidak ada level yang ditemukan."}</p>
+                     <Link href={route('questify.index')} className="text-indigo-600 hover:underline mt-4 inline-block">Kembali ke Lobby</Link>
+                 </div></div>
+             </AuthenticatedLayout>
+         );
+     }
+
+
+    // Tampilan Game Utama
     return (
         <AuthenticatedLayout
             user={auth.user}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bermain: {game.title}</h2>}
+            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Bermain: {game?.title || 'Game'}</h2>}
         >
-            <Head title={`Bermain - ${game.title}`} />
-            <div className="py-12 bg-indigo-50 min-h-screen">
-                <div className="max-w-4xl mx-auto">
-                    {/* Gunakan data dari currentLevel */}
-                    <p className="text-indigo-600 font-semibold mb-6 text-center">Level {currentLevel.level}</p>
+            <Head title={`Level ${currentLevel?.level || ''} - ${game?.title || 'Game'}`} />
+            <div className="py-6 sm:py-12 bg-gradient-to-br from-indigo-100 to-purple-100 min-h-screen">
+                <div className="max-w-4xl mx-auto px-4 sm:px-0">
+                    {/* Informasi Level dan Instruksi */}
+                    {currentLevel && (
+                        <div className="text-center mb-6">
+                             <span className="inline-block bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full mb-2">
+                                 Level {currentLevel.level} / {levels.length}
+                             </span>
+                             <p className="text-lg text-gray-700 max-w-2xl mx-auto">{currentLevel.instruction}</p>
+                        </div>
+                    )}
 
-                     <ChibiPlayground
-                        cssCode={data.userCode}
-                        instruction={currentLevel.instruction}
-                        isHappy={isHappy}
-                        hasIceCream={hasIceCream}
-                    />
+                    {/* Area Playground Chibi */}
+                    {currentLevel && (
+                        <ChibiPlayground
+                            cssCode={userAnswer} // Terapkan kode user ke playground
+                            setupHtml={currentLevel.setup_html}
+                            targetCss={currentLevel.target_css}
+                            chibiState={chibiState}
+                            showIceCream={showIceCream}
+                            gameComplete={levelComplete} // Animasi per level
+                        />
+                    )}
 
-                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                    {/* Area Editor Kode */}
+                    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
                          <label htmlFor="editor" className="block text-lg font-bold text-gray-700 mb-2">
-                            Kode CSS Anda (.pond):
+                            Jawaban Anda: {/* Sesuaikan label jika bukan kode CSS */}
                         </label>
                         <textarea
                             id="editor"
-                            className="w-full h-40 p-3 font-mono text-sm border-2 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                            value={data.userCode}
-                            onChange={(e) => setData('userCode', e.target.value)}
-                            placeholder="Contoh: justify-content: flex-end;"
+                            className="w-full h-40 p-3 font-mono text-sm border-2 border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-none transition-colors duration-300"
+                            value={userAnswer}
+                            onChange={(e) => setUserAnswer(e.target.value)}
+                            placeholder="Tulis jawaban di sini..."
+                            spellCheck="false"
+                            disabled={isLoading || levelComplete || allLevelsComplete} // Disable saat loading/selesai
                         ></textarea>
 
-                        {message && (
-                            <p className={`mt-3 p-2 rounded-lg font-semibold ${isHappy ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {message}
+                        {/* Pesan Feedback */}
+                        {feedbackMessage && (
+                            <p className={`mt-3 p-3 rounded-lg font-semibold text-center ${
+                                chibiState === 'happy' ? 'bg-green-100 text-green-700'
+                                : chibiState === 'sad' ? 'bg-red-100 text-red-700'
+                                : 'bg-blue-100 text-blue-700' // Pesan loading/info
+                            }`}>
+                                {feedbackMessage}
                             </p>
                         )}
 
-                        <div className="mt-4 flex space-x-3">
-                            <button onClick={checkAnswer} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-full shadow-md hover:bg-indigo-700">
-                                Cek Jawaban
+                         {/* Popup Semua Level Selesai */}
+                        {allLevelsComplete && (
+                             <div className="mt-4 p-4 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg text-center">
+                                 <h3 className="font-bold text-lg">🎉 Selamat! 🎉</h3>
+                                 <p>Kamu telah menyelesaikan semua level di game ini!</p>
+                                 <p className="mt-2">Chibi berhasil mendapatkan ice cream! +20 EXP</p>
+                                 <Link href={route('questify.index')} className="mt-3 inline-block px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                                     Kembali ke Lobby
+                                 </Link>
+                             </div>
+                        )}
+
+
+                        {/* Tombol Aksi */}
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            <button
+                                onClick={checkAnswer}
+                                className={`px-6 py-2 bg-indigo-600 text-white font-bold rounded-full shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ${isLoading || levelComplete || allLevelsComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={isLoading || levelComplete || allLevelsComplete}
+                            >
+                                {isLoading ? 'Memeriksa...' : 'Cek Jawaban ✅'}
                             </button>
-                            <button onClick={resetLevel} className="px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-full shadow-md hover:bg-gray-400">
-                                Reset
+                            <button
+                                onClick={resetLevel}
+                                className={`px-4 py-2 bg-gray-300 text-gray-800 font-semibold rounded-full shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 transition duration-150 ${isLoading || levelComplete || allLevelsComplete ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={isLoading || levelComplete || allLevelsComplete}
+                            >
+                                Reset 🔄
                             </button>
                         </div>
-                         <div className="mt-6">
-                            <Link href={route('questify.index')} className="text-sm text-indigo-600 hover:underline">← Kembali ke Lobby</Link>
+                         <div className="mt-6 border-t pt-4">
+                            <Link href={route('questify.index')} className="text-sm text-indigo-600 hover:underline">← Kembali ke Lobby Game</Link>
                         </div>
                     </div>
                 </div>
             </div>
+            {/* Tambahkan CSS untuk animasi shake */}
+             <style>{`
+                @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
+                .animate-shake { animation: shake 0.5s ease-in-out; }
+             `}</style>
         </AuthenticatedLayout>
     );
 }
