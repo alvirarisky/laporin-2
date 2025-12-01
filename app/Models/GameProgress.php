@@ -10,7 +10,11 @@ class GameProgress extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id']; // Atau $fillable
+    protected $table = 'game_progresses';
+    protected $guarded = ['id'];
+    protected $casts = [
+        'score' => 'integer',
+    ];
 
     // Relasi: Progress milik satu user
     public function user(): BelongsTo

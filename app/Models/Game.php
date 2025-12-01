@@ -15,6 +15,10 @@ class Game extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'game_type' => 'string',
+    ];
+
     // Relasi: Satu game milik satu topik
     public function topic(): BelongsTo
     {

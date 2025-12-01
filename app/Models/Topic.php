@@ -4,14 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany; // Tambahkan ini
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Topic extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    public function major(): BelongsTo
+    {
+        return $this->belongsTo(Major::class);
+    }
 
     // Relasi: Satu topik punya banyak game
     public function games(): HasMany

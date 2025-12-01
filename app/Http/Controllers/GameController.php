@@ -5,74 +5,49 @@ namespace App\Http\Controllers;
 use App\Models\Game;
 use App\Models\GameLevel;
 use App\Models\GameProgress;
-use App\Models\Topic;
+use App\Models\Major;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB; // Jika pakai raw query
 use Inertia\Inertia;
 
 class GameController extends Controller
 {
-    /**
-     * Menampilkan daftar topik dan game yang tersedia (Lobby).
-     */
     public function index()
     {
         return Inertia::render('Questify/Lobby', [
-            // Ambil semua topik beserta game-game di dalamnya
-            // Eager load relasi 'games'
-            'topics' => Topic::with('games')->get(),
+            'majors' => Major::with(['topics.games' => fn ($query) => $query->withCount('levels')])
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
-    /**
-     * Menampilkan halaman detail game beserta level-levelnya.
-     * Menggunakan route model binding dengan slug.
-     */
-    public function show(Game $game) // Laravel otomatis cari Game by slug
+    public function show(Game $game)
     {
-        // Muat relasi 'levels' agar data level ikut terkirim ke frontend
-        // Relasi sudah diurutkan di Model Game
-        $game->load('levels');
+        $game->load([
+            'levels',
+            'topic.major',
+        ]);
 
-        // Opsional: Ambil progress terakhir user untuk game ini
-        $lastProgress = GameProgress::where('user_id', Auth::id())
-            ->where('game_id', $game->id)
-            ->latest('updated_at') // Ambil yg terbaru
-            ->first();
+        $progressCollection = $game->progresses()
+            ->where('user_id', Auth::id())
+            ->get()
+            ->keyBy('level_id')
+            ->map(fn (GameProgress $progress) => [
+                'level_id' => $progress->level_id,
+                'status' => $progress->status,
+                'score' => $progress->score,
+                'updated_at' => $progress->updated_at,
+            ]);
 
-        $startLevelIndex = 0;
-        if ($lastProgress && $lastProgress->status === 'completed') {
-            // Jika level terakhir selesai, cari level selanjutnya
-            $nextLevel = GameLevel::where('game_id', $game->id)
-                ->where('level', '>', $lastProgress->level->level) // Cari level > level terakhir yg disimpan
-                ->orderBy('level', 'asc')
-                ->first();
-            if ($nextLevel) {
-                // Cari index level selanjutnya di collection $game->levels
-                $startLevelIndex = $game->levels->search(function ($level) use ($nextLevel) {
-                    return $level->id === $nextLevel->id;
-                });
-                if ($startLevelIndex === false) {
-                    $startLevelIndex = 0;
-                } // Fallback
-            } else {
-                // Semua level sudah selesai? Tampilkan level terakhir lagi atau pesan khusus
-                $startLevelIndex = $game->levels->count() - 1; // Index level terakhir
-            }
-        } elseif ($lastProgress) {
-            // Jika belum selesai, mulai dari level terakhir yg tercatat
-            $startLevelIndex = $game->levels->search(function ($level) use ($lastProgress) {
-                return $level->id === $lastProgress->level_id;
-            });
-            if ($startLevelIndex === false) {
-                $startLevelIndex = 0;
-            } // Fallback
-        }
+        $progressPayload = $progressCollection->toArray();
+
+        $startLevelIndex = $this->resolveStartingLevelIndex($game->levels, $progressCollection);
 
         return Inertia::render('Questify/Game', [
             'game' => $game,
-            'startLevelIndex' => $startLevelIndex, // Kirim index level awal
+            'startLevelIndex' => $startLevelIndex,
+            'progress' => $progressPayload,
         ]);
     }
 
@@ -85,10 +60,6 @@ class GameController extends Controller
     //     return response()->json($game->levels);
     // }
 
-    /**
-     * API endpoint untuk memeriksa jawaban user.
-     * Dipanggil via axios dari Game.jsx.
-     */
     public function checkAnswer(Request $request)
     {
         $validated = $request->validate([
@@ -97,96 +68,152 @@ class GameController extends Controller
         ]);
 
         $level = GameLevel::findOrFail($validated['level_id']);
-        $game = $level->game; // Ambil game terkait
+        $game = $level->game()->firstOrFail();
 
+        $rawAnswer = $validated['user_answer'];
         $isCorrect = false;
-        $message = 'Jawaban salah, coba lagi ya!';
+        $message = 'Masih ada yang salah, koreksi lagi ya!';
 
-        // Normalisasi jawaban (hapus spasi berlebih, lowercase)
-        $userAnswerClean = trim(preg_replace('/\s+/', ' ', strtolower($validated['user_answer'])));
-        $solutionClean = trim(preg_replace('/\s+/', ' ', strtolower($level->solution)));
-
-        // Logika pengecekan (sesuaikan per game type jika perlu)
-        if ($game->game_type === 'sql' && $level->solution_query) {
-            // TODO: Eksekusi $userAnswerClean dan $level->solution_query
-            // Bandingkan hasilnya. Ini kompleks dan butuh environment SQL sandbox.
-            // Untuk sementara, kita cek string saja.
-            if ($userAnswerClean === $solutionClean) { // Placeholder check
-                $isCorrect = true;
-            }
-        } else { // Default check (CSS, Quiz, etc.)
-            if ($userAnswerClean === $solutionClean) {
-                $isCorrect = true;
-            }
+        switch ($game->game_type) {
+            case 'math':
+            case 'logic':
+                $target = $level->target_answer ?? $level->solution;
+                $isCorrect = $this->compareMathLogic($rawAnswer, $target);
+                break;
+            case 'css':
+                $isCorrect = $this->normalizeCss($rawAnswer) === $this->normalizeCss($level->solution);
+                break;
+            case 'sql':
+                $isCorrect = $this->validateSqlAnswer($rawAnswer, $level->solution);
+                break;
+            default:
+                $target = $level->target_answer ?? $level->solution;
+                $isCorrect = $this->normalizeSimple($rawAnswer) === $this->normalizeSimple($target);
+                break;
         }
 
         if ($isCorrect) {
-            $message = 'Yeay, benar! 🎉 Lanjut ke level berikutnya!';
-            // Langsung simpan progres di sini
-            $this->storeProgressInternal(Auth::id(), $game->id, $level->id, true);
-        } else {
-            // Simpan progres gagal (opsional)
-            // $this->storeProgressInternal(Auth::id(), $game->id, $level->id, false);
+            $message = 'Jawaban kamu tepat! 🎉';
         }
 
         return response()->json([
             'success' => $isCorrect,
             'message' => $message,
+            'exp_gained' => $isCorrect ? 10 : 0,
         ]);
     }
 
-    /**
-     * API endpoint untuk menyimpan progres (dipanggil setelah jawaban benar).
-     * Bisa juga dipanggil internal oleh checkAnswer.
-     */
     public function storeProgress(Request $request)
     {
         $validated = $request->validate([
             'game_id' => 'required|exists:games,id',
             'level_id' => 'required|exists:game_levels,id',
-            'status' => 'required|in:completed,failed', // Atau 'in_progress'
+            'status' => 'required|in:completed,failed',
         ]);
 
         $userId = Auth::id();
-        $scoreIncrement = ($validated['status'] === 'completed') ? 10 : 0; // Contoh skor
+        $level = GameLevel::where('id', $validated['level_id'])
+            ->where('game_id', $validated['game_id'])
+            ->firstOrFail();
 
         $progress = GameProgress::updateOrCreate(
             [
                 'user_id' => $userId,
                 'game_id' => $validated['game_id'],
-                'level_id' => $validated['level_id'], // Kunci unik per user, game, level
+                'level_id' => $validated['level_id'],
             ],
             [
                 'status' => $validated['status'],
-                // Update score jika perlu (misal: tambah jika complete)
-                'score' => DB::raw('score + '.$scoreIncrement), // Hati-hati jika mau replace score
+                'score' => $validated['status'] === 'completed' ? 10 : 0,
             ]
         );
 
-        return response()->json(['success' => true, 'message' => 'Progres disimpan!']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Progres tersimpan!',
+            'progress' => $progress,
+        ]);
     }
 
-    /**
-     * Helper internal untuk simpan progres.
-     */
-    private function storeProgressInternal($userId, $gameId, $levelId, $isCorrect)
+    private function resolveStartingLevelIndex(Collection $levels, Collection $progressCollection): int
     {
-        $status = $isCorrect ? 'completed' : 'failed'; // Atau 'in_progress'
-        $scoreIncrement = $isCorrect ? 10 : 0; // Contoh skor
+        if ($levels->isEmpty()) {
+            return 0;
+        }
 
-        // Gunakan updateOrCreate untuk handle insert atau update
-        GameProgress::updateOrCreate(
-            [
-                'user_id' => $userId,
-                'game_id' => $gameId,
-                'level_id' => $levelId,
-            ],
-            [
-                'status' => $status,
-                // Hanya update score jika status completed dan belum pernah complete sebelumnya?
-                // Logic score bisa lebih kompleks
-                'score' => DB::raw('score + '.$scoreIncrement),
-            ]
-        );
+        foreach ($levels as $index => $level) {
+            $currentProgress = $progressCollection->get($level->id);
+            if (!$currentProgress || $currentProgress['status'] !== 'completed') {
+                return $index;
+            }
+        }
+
+        return max($levels->count() - 1, 0);
+    }
+
+    private function normalizeCss(string $answer): string
+    {
+        $lower = mb_strtolower($answer, 'UTF-8');
+        $normalized = preg_replace('/\s+/', '', $lower);
+        return rtrim($normalized, ';');
+    }
+
+    private function normalizeSimple(string $answer): string
+    {
+        $lower = mb_strtolower($answer, 'UTF-8');
+        return trim(preg_replace('/\s+/', ' ', $lower));
+    }
+
+    private function normalizeSql(string $answer): string
+    {
+        $lower = mb_strtolower($answer, 'UTF-8');
+        $normalized = preg_replace('/\s+/', ' ', $lower);
+        return trim($normalized);
+    }
+
+    private function validateSqlAnswer(string $answer, ?string $solution): bool
+    {
+        $normalizedAnswer = $this->normalizeSql($answer);
+        $hasSelect = str_contains($normalizedAnswer, 'select ');
+        $hasFrom = str_contains($normalizedAnswer, ' from ');
+
+        if (!$hasSelect || !$hasFrom) {
+            return false;
+        }
+
+        if ($solution) {
+            return $normalizedAnswer === $this->normalizeSql($solution);
+        }
+
+        return true;
+    }
+
+    private function compareMathLogic(?string $answer, ?string $target): bool
+    {
+        if ($answer === null || $target === null) {
+            return false;
+        }
+
+        $normalizedAnswer = $this->normalizeSimple($answer);
+        $normalizedTarget = $this->normalizeSimple($target);
+
+        $answerNumeric = $this->toNumeric($normalizedAnswer);
+        $targetNumeric = $this->toNumeric($normalizedTarget);
+
+        if ($answerNumeric !== null && $targetNumeric !== null) {
+            return abs($answerNumeric - $targetNumeric) < 0.00001;
+        }
+
+        return $normalizedAnswer === $normalizedTarget;
+    }
+
+    private function toNumeric(string $value): ?float
+    {
+        $sanitized = str_replace(',', '.', $value);
+        if (is_numeric($sanitized)) {
+            return (float) $sanitized;
+        }
+
+        return null;
     }
 }

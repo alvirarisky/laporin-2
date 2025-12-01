@@ -11,6 +11,9 @@ class GameLevel extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+    protected $casts = [
+        'level' => 'integer',
+    ];
 
     // Relasi: Satu level milik satu game
     public function game(): BelongsTo
