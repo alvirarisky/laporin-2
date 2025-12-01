@@ -1,14 +1,14 @@
 <?php
 
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\LaporanController;
-use App\Http\Controllers\TemplateController;
-use App\Http\Controllers\ReportSectionController;
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportSectionController;
+use App\Http\Controllers\TemplateController;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +25,7 @@ Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }
+
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
@@ -39,6 +40,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // --- Rute Dashboard Utama ---
     Route::get('/dashboard', function () {
         $user = Auth::user();
+
         // Ambil laporan dan template milik user
         return Inertia::render('Dashboard', [
             'laporans' => $user->laporans()->latest()->get(),
@@ -61,7 +63,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/laporan/{laporan}/download-docx', [LaporanController::class, 'downloadDocx'])->name('laporan.download.docx');
     Route::post('/laporan/preview-live', [LaporanController::class, 'previewLive'])->name('laporan.preview.live');
     Route::get('/laporan/{laporan}/preview', [LaporanController::class, 'preview'])->name('laporan.preview');
-    
+
     // Rute untuk update section/bab
     Route::put('/sections/{section}', [ReportSectionController::class, 'update'])->name('sections.update');
 
@@ -76,4 +78,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // --- Rute Autentikasi (login, register, dll) ---
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

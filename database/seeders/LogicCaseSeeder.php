@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Game;
 use App\Models\GameLevel;
+use Illuminate\Database\Seeder;
 
 class LogicCaseSeeder extends Seeder
 {
@@ -28,8 +28,8 @@ class LogicCaseSeeder extends Seeder
                     'headers' => ['date', 'type', 'description'],
                     'rows' => [
                         ['2025-10-13', 'pembunuhan', 'Kejahatan terjadi di SQL City Park. Ada dua saksi.'],
-                    ]
-                ])
+                    ],
+                ]),
             ]);
 
             // LEVEL 2: MENCARI SAKSI (LENGKAPI SEMUA FIELD)
@@ -44,8 +44,8 @@ class LogicCaseSeeder extends Seeder
                     'rows' => [
                         ['14887', 'Morty Schapiro', 'Northwestern Dr'],
                         ['16371', 'Annabel Miller', 'Franklin Ave'],
-                    ]
-                ])
+                    ],
+                ]),
             ]);
         }
     }

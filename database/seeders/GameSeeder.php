@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Game;
 use App\Models\Topic;
+use Illuminate\Database\Seeder;
 
 class GameSeeder extends Seeder
 {

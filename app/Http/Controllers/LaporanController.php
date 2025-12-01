@@ -3,19 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Laporan;
-use App\Models\ReportSection;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Inertia;
-
 // --- KITA PAKAI DUA-DUANYA ---
-use Barryvdh\DomPDF\Facade\Pdf; // Untuk PDF
-use PhpOffice\PhpWord\PhpWord; // Untuk DOCX
+use Inertia\Inertia; // Untuk PDF
 use PhpOffice\PhpWord\IOFactory; // Untuk DOCX
+use PhpOffice\PhpWord\PhpWord; // Untuk DOCX
 use PhpOffice\PhpWord\Shared\Converter; // Untuk DOCX
 use PhpOffice\PhpWord\Shared\Html; // Untuk DOCX (meski pakai addText)
-use PhpOffice\PhpWord\Element\Section as PhpWordSection; // Untuk DOCX
+// Untuk DOCX
 use PhpOffice\PhpWord\Style\Language; // Untuk DOCX
 
 class LaporanController extends Controller
@@ -26,6 +24,7 @@ class LaporanController extends Controller
     public function index()
     {
         $laporans = Laporan::where('user_id', Auth::id())->latest()->get();
+
         return Inertia::render('Laporan/Index', ['laporans' => $laporans]);
     }
 
@@ -82,13 +81,14 @@ class LaporanController extends Controller
     public function edit(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
+
         return Inertia::render('Laporan/Edit', [
-            'laporan' => $laporan->load('sections')
+            'laporan' => $laporan->load('sections'),
         ]);
     }
 
-     public function destroy(Laporan $laporan)
-     {
+    public function destroy(Laporan $laporan)
+    {
         $this->authorize('delete', $laporan);
 
         if ($laporan->logo_path && Storage::disk('public')->exists($laporan->logo_path)) {
@@ -98,11 +98,11 @@ class LaporanController extends Controller
         $laporan->delete();
 
         return redirect()->route('dashboard')->with('success', 'Laporan berhasil dihapus.');
-     }
+    }
 
     public function previewLive(Request $request)
     {
-        $request->validate([ 'logo' => 'nullable|image|max:2048', ]);
+        $request->validate(['logo' => 'nullable|image|max:2048']);
 
         $previewData = $request->except(['logo', '_token']);
         $previewData['base64Logo'] = null;
@@ -115,10 +115,10 @@ class LaporanController extends Controller
 
                 if (in_array($type, $allowedTypes)) {
                     $data = file_get_contents($path);
-                    $previewData['base64Logo'] = 'data:' . $type . ';base64,' . base64_encode($data);
+                    $previewData['base64Logo'] = 'data:'.$type.';base64,'.base64_encode($data);
                 }
             } catch (\Exception $e) {
-                 report($e);
+                report($e);
             }
         }
 
@@ -134,12 +134,12 @@ class LaporanController extends Controller
             // Load relasi section
             $laporan->load('sections');
             // Buat nama file
-            $filename = "laporan-" . \Illuminate\Support\Str::slug($laporan->judul) . ".pdf";
+            $filename = 'laporan-'.\Illuminate\Support\Str::slug($laporan->judul).'.pdf';
 
             // Load view 'reports.preview' dan passing data laporan
             // Dompdf akan merender view ini ke PDF
             $pdf = Pdf::loadView('reports.preview', [
-                'laporan' => $laporan
+                'laporan' => $laporan,
             ]);
 
             // Set ukuran kertas dan orientasi
@@ -151,7 +151,8 @@ class LaporanController extends Controller
         } catch (\Exception $e) {
             // Tangani error jika Dompdf gagal
             report($e);
-            return redirect()->back()->with('error', 'Gagal membuat file PDF: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal membuat file PDF: '.$e->getMessage());
         }
     }
 
@@ -168,7 +169,7 @@ class LaporanController extends Controller
 
         try {
             // Inisialisasi PhpWord
-            $phpWord = new PhpWord();
+            $phpWord = new PhpWord;
             $phpWord->getSettings()->setThemeFontLang(new Language(Language::EN_US));
 
             // Style global
@@ -179,7 +180,6 @@ class LaporanController extends Controller
             $phpWord->addTitleStyle(1, ['size' => 14, 'bold' => true], ['spaceBefore' => Converter::cmToTwip(0.8), 'spaceAfter' => Converter::cmToTwip(0.5), 'keepNext' => true]);
             // Style Judul "DAFTAR ISI" (Heading 0)
             $phpWord->addTitleStyle(0, ['size' => 16, 'bold' => true], ['spaceAfter' => Converter::cmToTwip(0.8), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
-
 
             // === SECTION 1: COVER === (Sama seperti sebelumnya)
             $coverSection = $phpWord->addSection([
@@ -192,12 +192,14 @@ class LaporanController extends Controller
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->report_type)), ['size' => 14, 'bold' => true], $centerStyle);
             $coverSection->addTextBreak(2);
             if ($laporan->logo_path && Storage::disk('public')->exists($laporan->logo_path)) {
-                 $logoFullPath = Storage::disk('public')->path($laporan->logo_path);
-                 $coverSection->addImage($logoFullPath, ['width' => Converter::cmToPixel(2.5), 'height' => Converter::cmToPixel(2.5), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
-            } else { $coverSection->addTextBreak(2); }
+                $logoFullPath = Storage::disk('public')->path($laporan->logo_path);
+                $coverSection->addImage($logoFullPath, ['width' => Converter::cmToPixel(2.5), 'height' => Converter::cmToPixel(2.5), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
+            } else {
+                $coverSection->addTextBreak(2);
+            }
             $coverSection->addTextBreak(3);
             $coverSection->addText('Disusun Oleh:', ['size' => 12], $centerStyle);
-            $coverSection->addText(htmlspecialchars($laporan->nama) . ' (' . htmlspecialchars($laporan->nim) . ')', ['size' => 12, 'bold' => true], $centerStyle);
+            $coverSection->addText(htmlspecialchars($laporan->nama).' ('.htmlspecialchars($laporan->nim).')', ['size' => 12, 'bold' => true], $centerStyle);
             $coverSection->addTextBreak(3);
             $coverSection->addText('Dosen Pengampu:', ['size' => 12], $centerStyle);
             $coverSection->addText(htmlspecialchars($laporan->dosen_pembimbing), ['size' => 12, 'bold' => true], $centerStyle);
@@ -237,7 +239,7 @@ class LaporanController extends Controller
                     $contentSection->addTitle(htmlspecialchars(strtoupper($section->title)), 1);
 
                     // --- INI KODENYA: KONVERSI KE TEKS POLOS (AMAN) ---
-                    if (!empty($section->content)) {
+                    if (! empty($section->content)) {
 
                         $html = $section->content;
 
@@ -256,12 +258,12 @@ class LaporanController extends Controller
                         // Pecah jadi beberapa baris berdasarkan newline
                         $lines = explode("\n", $plainText);
 
-                        if (!empty($lines)) {
+                        if (! empty($lines)) {
                             foreach ($lines as $line) {
                                 // Escape karakter khusus XML (&, <, >) untuk PhpWord
                                 $safeLine = htmlspecialchars($line, ENT_COMPAT, 'UTF-8', false);
 
-                                if(trim($safeLine) !== '') {
+                                if (trim($safeLine) !== '') {
                                     // Tambahkan teks sebagai paragraf ke Word
                                     $contentSection->addText($safeLine, $fontStyle, $paraStyle);
                                 } else {
@@ -281,35 +283,36 @@ class LaporanController extends Controller
             }
 
             // Nama file download
-            $filename = "laporan-" . \Illuminate\Support\Str::slug($laporan->judul) . ".docx";
+            $filename = 'laporan-'.\Illuminate\Support\Str::slug($laporan->judul).'.docx';
 
             // Hapus buffer sebelum kirim header
             ob_end_clean();
 
             // Set header untuk download DOCX
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Content-Disposition: attachment;filename="'.$filename.'"');
             header('Cache-Control: max-age=0');
 
             // Simpan ke output
             $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
-            $objWriter->save("php://output");
+            $objWriter->save('php://output');
             exit;
 
         } catch (\Exception $e) {
             // Tangani error jika PhpWord gagal
             ob_end_clean();
             report($e);
-            return redirect()->back()->with('error', 'Gagal membuat file DOCX: ' . $e->getMessage() . ' (File: ' . basename($e->getFile()) . ' Baris: ' . $e->getLine() . ')');
+
+            return redirect()->back()->with('error', 'Gagal membuat file DOCX: '.$e->getMessage().' (File: '.basename($e->getFile()).' Baris: '.$e->getLine().')');
         }
     }
-
 
     // Preview dari Database
     public function preview(Laporan $laporan)
     {
-         $this->authorize('update', $laporan);
-         return view('reports.preview', ['laporan' => $laporan->load('sections')]);
+        $this->authorize('update', $laporan);
+
+        return view('reports.preview', ['laporan' => $laporan->load('sections')]);
     }
 
     /**
@@ -344,7 +347,7 @@ class LaporanController extends Controller
                 break;
 
             case 'Studi Kasus':
-                 $sections = [
+                $sections = [
                     ['title' => 'BAB I PENDAHULUAN', 'order' => 1],
                     ['title' => 'BAB II PROFIL OBJEK STUDI', 'order' => 2],
                     ['title' => 'BAB III PEMBAHASAN KASUS', 'order' => 3],

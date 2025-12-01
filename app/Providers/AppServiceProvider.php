@@ -2,13 +2,11 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Vite;
-use Illuminate\Support\ServiceProvider;
 use App\Models\Laporan;
 use App\Policies\LaporanPolicy;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
-
 {
     /**
      * The model to policy mappings for the application.

@@ -18,13 +18,13 @@ class SqlGameController extends Controller
         if ($userQuery === $solutionQuery) {
             return response()->json([
                 'correct' => true,
-                'result' => json_decode($gameLevel->success_data)
+                'result' => json_decode($gameLevel->success_data),
             ]);
         }
 
         return response()->json([
             'correct' => false,
-            'message' => 'Query salah, petunjuk tidak ditemukan. Coba lagi!'
+            'message' => 'Query salah, petunjuk tidak ditemukan. Coba lagi!',
         ]);
     }
 }

@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Document;
 use PhpOffice\PhpWord\TemplateProcessor;
 
 class DocumentController extends Controller
 {
-
-     public function store(Request $request)
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -26,7 +24,7 @@ class DocumentController extends Controller
 
         return redirect()->route('home')->with('success', 'Laporan berhasil disimpan!');
     }
-    
+
     public function download(\App\Models\Document $document)
     {
         // 1. Tentukan path ke file template
@@ -44,7 +42,7 @@ class DocumentController extends Controller
         $templateProcessor->setValue('nim_mahasiswa', $contentData['nim'] ?? '');
 
         // 5. Siapkan nama file baru yang akan di-download
-        $newFileName = 'Laporan - ' . $document->title . '.docx';
+        $newFileName = 'Laporan - '.$document->title.'.docx';
         $newFilePath = storage_path($newFileName);
 
         // 6. Simpan dokumen yang sudah diproses

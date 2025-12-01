@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Controllers\GameController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\GameController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,11 +19,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-
 // --- RUTE API UNTUK FITUR QUESTIFY ---
 // Semua rute di sini perlu login (di-protect oleh Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // Rute untuk memvalidasi jawaban user
     // Frontend akan POST ke /api/game/check-answer
     Route::post('/game/check-answer', [GameController::class, 'checkAnswer'])->name('api.game.checkAnswer');

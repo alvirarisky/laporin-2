@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -7,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GameProgress extends Model
 {
     use HasFactory;
+
     protected $guarded = ['id']; // Atau $fillable
 
     // Relasi: Progress milik satu user
@@ -22,8 +25,8 @@ class GameProgress extends Model
     }
 
     // Relasi: Progress terkait satu level
-     public function level(): BelongsTo // Nama method 'level' singular
-     {
-         return $this->belongsTo(GameLevel::class); // Relasi ke GameLevel
-     }
+    public function level(): BelongsTo // Nama method 'level' singular
+    {
+        return $this->belongsTo(GameLevel::class); // Relasi ke GameLevel
+    }
 }

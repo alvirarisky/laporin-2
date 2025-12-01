@@ -22,6 +22,6 @@ class ReportSectionController extends Controller
         $section->update($validated);
 
         // Redirect kembali ke halaman editor dengan pesan sukses
-        return back()->with('success', 'Perubahan pada bab "' . $section->title . '" berhasil disimpan!');
+        return back()->with('success', 'Perubahan pada bab "'.$section->title.'" berhasil disimpan!');
     }
 }

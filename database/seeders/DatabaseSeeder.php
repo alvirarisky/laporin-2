@@ -15,10 +15,10 @@ class DatabaseSeeder extends Seeder
         // Panggil seeder lain dengan urutan yang logis:
         // 1. Buat Topik dulu, karena Game butuh Topik.
         $this->call(TopicSeeder::class);
-        
+
         // 2. Buat Game setelah Topik ada, agar bisa dihubungkan.
         $this->call(GameSeeder::class);
-        
+
         // 3. Buat Level untuk setiap Game setelah Game-nya ada.
         $this->call(GameLevelSeeder::class);
         $this->call(LogicCaseSeeder::class);

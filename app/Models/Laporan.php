@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -8,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Laporan extends Model
 {
     use HasFactory;
-    protected $fillable = [ /* ... field laporan lainnya ... */ 'mata_kuliah', 'topic_id' ]; // Tambah topic_id jika ada
+
+    protected $fillable = [/* ... field laporan lainnya ... */ 'mata_kuliah', 'topic_id']; // Tambah topic_id jika ada
 
     public function sections(): HasMany
     {
@@ -36,13 +39,14 @@ class Laporan extends Model
         if ($topic) {
             // Ambil game yang paling relevan untuk topik ini
             // Asumsi: Game langsung berelasi ke Topic (game punya topic_id)
-             return Game::where('topic_id', $topic->id)
-                        // ->where('relevance_score', '>', 0.7) // Contoh filter relevansi
-                        ->orderBy('created_at', 'desc') // Atau logic lain
-                        ->first();
-             // Jika pakai pivot table topic_game_links:
-             // return $topic->relevantGames()->first();
+            return Game::where('topic_id', $topic->id)
+                       // ->where('relevance_score', '>', 0.7) // Contoh filter relevansi
+                ->orderBy('created_at', 'desc') // Atau logic lain
+                ->first();
+            // Jika pakai pivot table topic_game_links:
+            // return $topic->relevantGames()->first();
         }
+
         return null; // Tidak ada game relevan
     }
 }

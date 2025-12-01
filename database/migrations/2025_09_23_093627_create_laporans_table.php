@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('laporans', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            
+
             // Kolom dari Form Identitas
             $table->string('report_type')->default('Makalah Akademik');
             $table->string('judul');
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('instansi');
             $table->string('kota');
             $table->string('tahun_ajaran');
-            
+
             // Kolom untuk Logo
             $table->string('logo_path')->nullable();
             $table->string('logo_position')->default('tengah');

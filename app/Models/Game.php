@@ -1,14 +1,18 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+
 // use Illuminate\Database\Eloquent\Relations\BelongsToMany; // Jika pakai pivot
 
 class Game extends Model
 {
     use HasFactory;
+
     protected $guarded = ['id'];
 
     // Relasi: Satu game milik satu topik
