@@ -1,54 +1,59 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, useForm } from "@inertiajs/react"; // Hapus 'router' jika tidak dipakai langsung di sini
+import { Head, useForm, Link } from "@inertiajs/react";
 import TextInput from "@/Components/TextInput";
 import InputLabel from "@/Components/InputLabel";
 import PrimaryButton from "@/Components/PrimaryButton";
 import InputError from "@/Components/InputError";
-// import QuestSidebar from "@/Components/QuestSidebar"; // Komponen ini belum ada, di-comment dulu
-import SelectInput from "@/Components/SelectInput"; // Import SelectInput
+import SelectInput from "@/Components/SelectInput";
 
-// Terima report_types dari controller
+// --- 1. IMPORT FILEPOND ---
+import { FilePond, registerPlugin } from 'react-filepond';
+
+// Import Style Utama (WAJIB DULUAN)
+import 'filepond/dist/filepond.min.css';
+
+// Import Plugin Preview & Style-nya
+import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
+import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+
+// Register plugin
+registerPlugin(FilePondPluginImagePreview);
+
 const Create = ({ auth, report_type, report_types }) => {
+    // State lokal buat FilePond visual
+    const [files, setFiles] = useState([]);
+
+    // State buat Preview PDF Cover
     const [previewUrl, setPreviewUrl] = useState("");
     const [showPreviewModal, setShowPreviewModal] = useState(false);
-    const [previewLoading, setPreviewLoading] = useState(false); // State untuk loading preview
+    const [previewLoading, setPreviewLoading] = useState(false);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
-        // Sesuaikan nama field dengan backend LaporanController@store dan model Laporan
-        report_type: report_type || (report_types && report_types.length > 0 ? report_types[0] : ''), // Ambil dari props atau default
+    const { data, setData, post, processing, errors } = useForm({
+        report_type: report_type || (report_types && report_types.length > 0 ? report_types[0] : ''),
         judul: "",
-        nama: auth.user.name || "", // Ambil nama user yg login
+        nama: auth.user.name || "",
         nim: "",
         prodi: "",
         mata_kuliah: "",
         dosen_pembimbing: "",
         instansi: "",
         kota: "",
-        tahun_ajaran: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1), // Default tahun ajaran
-        logo: null, // Untuk file upload
-        logo_position: "tengah", // Default posisi logo
+        tahun_ajaran: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1),
+        logo: null,
+        logo_position: "tengah",
     });
 
-    // --- Fungsi Input Change Handler ---
     const handleInputChange = (e) => {
-        const { name, value, type, files } = e.target;
-        if (type === 'file') {
-            setData(name, files[0]); // Ambil file pertama jika ada
-        } else {
-            setData(name, value);
-        }
+        const { name, value } = e.target;
+        setData(name, value);
     };
 
-    // --- PERBAIKAN: Fungsi Pratinjau ---
     const handlePreview = async () => {
-        setPreviewLoading(true); // Mulai loading
-        setPreviewUrl(''); // Kosongkan URL lama
-
-        // Gunakan FormData untuk mengirim data + file
+        setPreviewLoading(true);
+        setPreviewUrl('');
         const formData = new FormData();
         Object.keys(data).forEach(key => {
-            // Kirim string kosong jika value null/undefined, kecuali untuk file
             formData.append(key, data[key] === null && key !== 'logo' ? '' : data[key]);
         });
 
@@ -58,296 +63,311 @@ const Create = ({ auth, report_type, report_types }) => {
                 body: formData,
                 headers: {
                     "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
-                    "Accept": "text/html", // Minta response HTML
+                    "Accept": "text/html",
                 },
             });
 
-            if (!response.ok) {
-                // Coba baca pesan error jika ada
-                let errorText = `Gagal memuat pratinjau (Status: ${response.status})`;
-                try {
-                    const errorJson = await response.json();
-                    errorText += `: ${errorJson.message || 'Error tidak diketahui'}`;
-                    // Tampilkan validation errors jika ada
-                    if (errorJson.errors) {
-                         console.error("Validation Errors:", errorJson.errors);
-                         // Bisa ditambahkan logic untuk menampilkan error validasi ke user
-                    }
-                } catch (e) { /* Abaikan jika response bukan JSON */ }
-                throw new Error(errorText);
-            }
-
+            if (!response.ok) throw new Error("Gagal memuat preview.");
             const blob = await response.blob();
-            if (previewUrl) {
-                URL.revokeObjectURL(previewUrl); // Bersihkan URL lama
-            }
-            const url = URL.createObjectURL(blob);
-            setPreviewUrl(url);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(URL.createObjectURL(blob));
             setShowPreviewModal(true);
-
         } catch (error) {
-            console.error("Preview Error:", error);
-            alert(`Gagal menampilkan pratinjau: ${error.message}`);
+            console.error(error);
+            alert("Gagal menampilkan pratinjau. Pastikan semua data wajib terisi.");
         } finally {
-            setPreviewLoading(false); // Selesai loading
+            setPreviewLoading(false);
         }
     };
 
-    // --- Fungsi Submit Form (Simpan Laporan) ---
     const submit = (e) => {
         e.preventDefault();
-        // Inertia otomatis handle FormData jika ada file
-        post(route("laporan.store"), {
-            // Opsi tambahan jika perlu (misal: onSuccess, onError)
-            // onSuccess: () => console.log('Sukses!'),
-            // onError: (err) => console.error('Submit Error:', err),
-        });
+        post(route("laporan.store"));
     };
 
     return (
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                    Buat Laporan Baru {/* Tampilkan jenis laporan dari state */}
-                    {data.report_type && `: ${data.report_type}`}
-                </h2>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="font-bold text-2xl text-slate-800 leading-tight">
+                            Buat Laporan Baru 📝
+                        </h2>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Isi detail di bawah untuk generate struktur laporan otomatis.
+                        </p>
+                    </div>
+                    <Link
+                        href={route('dashboard')}
+                        className="text-sm font-medium text-slate-500 hover:text-slate-800 transition"
+                    >
+                        ← Kembali ke Dashboard
+                    </Link>
+                </div>
             }
         >
-            {/* Sesuaikan title dengan jenis laporan */}
-            <Head title={`Buat Laporan ${data.report_type ? `- ${data.report_type}` : ''}`} />
+            <Head title="Buat Laporan Baru" />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    {/* Hapus Grid jika QuestSidebar belum siap */}
-                    {/* <div className="grid grid-cols-1 lg:grid-cols-4 gap-6"> */}
-                    {/* Kolom Kiri: Form Laporan */}
-                    {/* <div className="lg:col-span-3 bg-white overflow-hidden shadow-xl sm:rounded-lg p-6"> */}
-                    <div className="bg-white overflow-hidden shadow-2xl sm:rounded-3xl p-8 border border-slate-200">
-                        <div className="mb-8">
-                            <h3 className="text-3xl font-bold text-slate-900 mb-2">
-                            📝 Data Identitas Dokumen
-                        </h3>
-                            <p className="text-sm text-slate-600">
-                                Isi informasi dasar untuk laporan akademik Anda
-                            </p>
+            <div className="py-10">
+                <div className="max-w-5xl mx-auto sm:px-6 lg:px-8">
+                    <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        
+                        {/* KOLOM KIRI: INPUT DATA UTAMA */}
+                        <div className="lg:col-span-2 space-y-6">
+                            
+                            {/* Card 1: Informasi Dasar */}
+                            <div className="bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200 rounded-2xl">
+                                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
+                                    <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">1</span>
+                                    Informasi Dasar
+                                </h3>
+                                
+                                <div className="space-y-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <InputLabel htmlFor="report_type" value="Jenis Laporan" className="mb-1" />
+                                            <SelectInput
+                                                id="report_type"
+                                                name="report_type"
+                                                value={data.report_type}
+                                                className="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                onChange={handleInputChange}
+                                                required
+                                            >
+                                                {report_types && report_types.length > 0 ? (
+                                                    report_types.map(type => <option key={type} value={type}>{type}</option>)
+                                                ) : (
+                                                    <option value="">Pilih Jenis</option>
+                                                )}
+                                            </SelectInput>
+                                            <InputError message={errors.report_type} className="mt-2" />
+                                        </div>
+                                        <div>
+                                            <InputLabel htmlFor="tahun_ajaran" value="Tahun Ajaran" className="mb-1" />
+                                            <TextInput 
+                                                id="tahun_ajaran" 
+                                                name="tahun_ajaran" 
+                                                value={data.tahun_ajaran} 
+                                                className="block w-full rounded-xl" 
+                                                onChange={handleInputChange} 
+                                                placeholder="Contoh: 2024/2025"
+                                                required 
+                                            />
+                                            <InputError message={errors.tahun_ajaran} className="mt-2" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <InputLabel htmlFor="judul" value="Judul Laporan" className="mb-1" />
+                                        <TextInput 
+                                            id="judul" 
+                                            name="judul" 
+                                            value={data.judul} 
+                                            className="block w-full rounded-xl font-medium" 
+                                            onChange={handleInputChange} 
+                                            placeholder="Masukkan judul lengkap laporan..."
+                                            required 
+                                        />
+                                        <InputError message={errors.judul} className="mt-2" />
+                                    </div>
+
+                                    <div>
+                                        <InputLabel htmlFor="instansi" value="Nama Institusi / Kampus" className="mb-1" />
+                                        <TextInput 
+                                            id="instansi" 
+                                            name="instansi" 
+                                            value={data.instansi} 
+                                            className="block w-full rounded-xl" 
+                                            onChange={handleInputChange} 
+                                            required 
+                                        />
+                                        <InputError message={errors.instansi} className="mt-2" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card 2: Detail Akademik */}
+                            <div className="bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200 rounded-2xl">
+                                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
+                                    <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">2</span>
+                                    Detail Akademik
+                                </h3>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <InputLabel htmlFor="nama" value="Nama Penulis" className="mb-1" />
+                                        <TextInput id="nama" name="nama" value={data.nama} className="block w-full rounded-xl bg-slate-50" onChange={handleInputChange} required readOnly={true} />
+                                        <InputError message={errors.nama} className="mt-2" />
+                                    </div>
+                                    <div>
+                                        <InputLabel htmlFor="nim" value="NIM / NISN" className="mb-1" />
+                                        <TextInput id="nim" name="nim" value={data.nim} className="block w-full rounded-xl" onChange={handleInputChange} required placeholder="Nomor Induk Mahasiswa" />
+                                        <InputError message={errors.nim} className="mt-2" />
+                                    </div>
+                                    <div>
+                                        <InputLabel htmlFor="prodi" value="Program Studi / Jurusan" className="mb-1" />
+                                        <TextInput id="prodi" name="prodi" value={data.prodi} className="block w-full rounded-xl" onChange={handleInputChange} required />
+                                        <InputError message={errors.prodi} className="mt-2" />
+                                    </div>
+                                    <div>
+                                        <InputLabel htmlFor="kota" value="Kota Domisili Kampus" className="mb-1" />
+                                        <TextInput id="kota" name="kota" value={data.kota} className="block w-full rounded-xl" onChange={handleInputChange} required />
+                                        <InputError message={errors.kota} className="mt-2" />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <InputLabel htmlFor="mata_kuliah" value="Mata Kuliah / Topik" className="mb-1" />
+                                        <TextInput id="mata_kuliah" name="mata_kuliah" value={data.mata_kuliah} className="block w-full rounded-xl" onChange={handleInputChange} required />
+                                        <InputError message={errors.mata_kuliah} className="mt-2" />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <InputLabel htmlFor="dosen_pembimbing" value="Dosen Pengampu / Pembimbing" className="mb-1" />
+                                        <TextInput id="dosen_pembimbing" name="dosen_pembimbing" value={data.dosen_pembimbing} className="block w-full rounded-xl" onChange={handleInputChange} required />
+                                        <InputError message={errors.dosen_pembimbing} className="mt-2" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <form onSubmit={submit} className="space-y-6">
-                            {/* --- TAMBAHKAN DROPDOWN JENIS LAPORAN --- */}
-                             <div>
-                                <InputLabel htmlFor="report_type" value="Jenis Laporan" />
-                                <SelectInput
-                                    id="report_type"
-                                    name="report_type"
-                                    value={data.report_type}
-                                    className="mt-1 block w-full"
-                                    onChange={handleInputChange}
-                                    required
-                                >
-                                    {/* Opsi dari controller */}
-                                    {report_types && report_types.length > 0 ? (
-                                        report_types.map(type => <option key={type} value={type}>{type}</option>)
-                                    ) : (
-                                        <option value="">Pilih Jenis</option> // Fallback jika tidak ada list
-                                    )}
-                                    {/* Atau hardcode jika tidak dikirim dari controller */}
-                                    {/* <option value="Makalah">Makalah</option>
-                                    <option value="Proposal">Proposal</option>
-                                    <option value="Laporan Praktikum">Laporan Praktikum</option>
-                                    <option value="Studi Kasus">Studi Kasus</option>
-                                    <option value="Skripsi">Skripsi</option> */}
-                                </SelectInput>
-                                <InputError message={errors.report_type} className="mt-2" />
-                            </div>
-
-                            {/* Baris 1: Judul Laporan */}
-                            <div>
-                                <InputLabel htmlFor="judul" value="Judul Laporan *" />
-                                <TextInput 
-                                    id="judul" 
-                                    name="judul" 
-                                    value={data.judul} 
-                                    className="mt-1 block w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200" 
-                                    onChange={handleInputChange} 
-                                    required 
-                                />
-                                <InputError message={errors.judul} className="mt-2" />
-                            </div>
-
-                            {/* Grid untuk field yang lebih pendek */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Baris 2: Nama & NIM */}
-                                <div>
-                                    <InputLabel htmlFor="nama" value="Nama Penulis *" />
-                                    <TextInput id="nama" name="nama" value={data.nama} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.nama} className="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="nim" value="NIM *" />
-                                    <TextInput id="nim" name="nim" value={data.nim} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.nim} className="mt-2" />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Baris 3: Prodi, Mata Kuliah, Dosen */}
-                                <div>
-                                    <InputLabel htmlFor="prodi" value="Program Studi *" />
-                                    <TextInput id="prodi" name="prodi" value={data.prodi} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.prodi} className="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="mata_kuliah" value="Mata Kuliah / Topik *" />
-                                    <TextInput id="mata_kuliah" name="mata_kuliah" value={data.mata_kuliah} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.mata_kuliah} className="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="dosen_pembimbing" value="Dosen Pengampu *" />
-                                    <TextInput id="dosen_pembimbing" name="dosen_pembimbing" value={data.dosen_pembimbing} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.dosen_pembimbing} className="mt-2" />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Baris 4: Instansi, Kota, Tahun Ajaran */}
-                                <div>
-                                    <InputLabel htmlFor="instansi" value="Nama Institusi *" />
-                                    <TextInput id="instansi" name="instansi" value={data.instansi} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.instansi} className="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="kota" value="Kota Institusi *" />
-                                    <TextInput id="kota" name="kota" value={data.kota} className="mt-1 block w-full" onChange={handleInputChange} required />
-                                    <InputError message={errors.kota} className="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="tahun_ajaran" value="Tahun Ajaran *" />
-                                    <TextInput id="tahun_ajaran" name="tahun_ajaran" value={data.tahun_ajaran} className="mt-1 block w-full" onChange={handleInputChange} required placeholder="Contoh: 2024/2025"/>
-                                    <InputError message={errors.tahun_ajaran} className="mt-2" />
-                                </div>
-                            </div>
-
-                             {/* --- TAMBAHKAN INPUT LOGO & POSISI --- */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <InputLabel htmlFor="logo" value="Logo Institusi (.png, .jpg, .gif - Maks 2MB)" />
-                                    {/* Input type file */}
-                                    <input
-                                        id="logo"
-                                        type="file"
-                                        name="logo"
-                                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                                        accept="image/png, image/jpeg, image/gif" // Batasi tipe file
-                                        onChange={handleInputChange} // Gunakan handler yang sama
-                                    />
-                                    {/* Tampilkan preview kecil jika logo sudah dipilih */}
-                                    {data.logo && typeof data.logo === 'object' && (
-                                        <img src={URL.createObjectURL(data.logo)} alt="Preview Logo" className="mt-2 h-16 w-auto border rounded"/>
-                                    )}
-                                    <InputError message={errors.logo} className="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel htmlFor="logo_position" value="Posisi Logo *" />
+                        {/* KOLOM KANAN: UPLOAD & ACTIONS */}
+                        <div className="space-y-6">
+                            
+                            {/* Card 3: Upload Logo */}
+                            <div className="bg-white p-6 shadow-sm ring-1 ring-slate-200 rounded-2xl">
+                                <h3 className="text-lg font-bold text-slate-800 mb-4">Logo Institusi</h3>
+                                
+                                <div className="mb-4">
+                                    <InputLabel htmlFor="logo_position" value="Posisi Logo" className="mb-1" />
                                     <SelectInput
                                         id="logo_position"
                                         name="logo_position"
                                         value={data.logo_position}
-                                        className="mt-1 block w-full"
+                                        className="block w-full rounded-xl border-slate-300"
                                         onChange={handleInputChange}
-                                        required
                                     >
-                                        <option value="kiri">Kiri</option>
-                                        <option value="tengah">Tengah</option>
-                                        <option value="kanan">Kanan</option>
+                                        <option value="tengah">Tengah (Center)</option>
+                                        <option value="kiri">Kiri (Left)</option>
+                                        <option value="kanan">Kanan (Right)</option>
                                     </SelectInput>
-                                    <InputError message={errors.logo_position} className="mt-2" />
                                 </div>
+
+                                {/* --- AREA FILEPOND STABIL --- */}
+                                <div className="mt-2">
+                                    <FilePond
+                                        files={files}
+                                        onupdatefiles={fileItems => {
+                                            setFiles(fileItems.map(fileItem => fileItem.file));
+                                            
+                                            // --- ❌ KOMEN DULU BAGIAN INI (JANGAN DIJALANKAN) ---
+                                            /* const file = fileItems.length > 0 ? fileItems[0].file : null;
+                                            if (data.logo !== file) {
+                                                setData('logo', file);
+                                            }
+                                            */
+                                            // ----------------------------------------------------
+                                            
+                                            console.log("File diupdate:", fileItems); // Cek console nanti
+                                        }}
+                                        allowMultiple={false}
+                                        maxFiles={1}
+                                        name="logo"
+                                        labelIdle='Drag & Drop logo atau <span class="filepond--label-action">Cari</span>'
+                                        storeAsFile={true}
+                                        credits={false} 
+
+                                        // --- SETTING WAJIB BIAR GAK GEPENG ---
+                                        allowImagePreview={true}
+                                        imagePreviewHeight={170} // Paksa tinggi
+                                        stylePanelLayout='integrated' // Tampilan menyatu
+                                        imagePreviewMarkupShow={true}
+                                    />
+                                    <InputError message={errors.logo} className="mt-2" />
+                                </div>
+                                {/* --- END AREA FILEPOND --- */}
+
                             </div>
 
-                            {/* Tombol Aksi */}
-                            <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-8 gap-4">
-                                <button
-                                    type="button"
-                                    onClick={handlePreview}
-                                    className={`inline-flex items-center gap-2 px-6 py-3 bg-slate-600 border border-transparent rounded-xl font-semibold text-sm text-white hover:bg-slate-700 active:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl ${previewLoading || processing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    disabled={previewLoading || processing}
-                                >
-                                    {previewLoading ? (
-                                        <>
-                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Memuat...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>👁️</span>
-                                            Preview Cover
-                                        </>
-                                    )}
-                                </button>
+                            {/* Action Buttons */}
+                            <div className="bg-white p-6 shadow-xl shadow-slate-200 ring-1 ring-slate-200 rounded-2xl lg:sticky lg:top-8">
+                                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Aksi</h3>
+                                
+                                <div className="space-y-3">
+                                    <button
+                                        type="button"
+                                        onClick={handlePreview}
+                                        disabled={previewLoading || processing}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
+                                    >
+                                        {previewLoading ? (
+                                            <span className="animate-pulse">Loading...</span>
+                                        ) : (
+                                            <>
+                                                <span>👁️</span> Pratinjau Cover
+                                            </>
+                                        )}
+                                    </button>
 
-                                <PrimaryButton 
-                                    disabled={processing || previewLoading}
-                                    className="px-6 py-3 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200"
-                                >
-                                    {processing ? (
-                                        <>
-                                            <svg className="animate-spin h-4 w-4 inline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            Menyimpan...
-                                        </>
-                                    ) : (
-                                        <>
-                                            💾 Simpan & Lanjutkan ke Editor
-                                        </>
-                                    )}
-                                </PrimaryButton>
+                                    <PrimaryButton
+                                        disabled={processing || previewLoading}
+                                        className="w-full justify-center py-3 text-base font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-lg shadow-indigo-200"
+                                    >
+                                        {processing ? 'Menyimpan...' : '💾 Simpan & Lanjut'}
+                                    </PrimaryButton>
+                                </div>
+                                <p className="text-xs text-center text-slate-400 mt-4">
+                                    Laporan akan tersimpan di draft setelah tombol simpan ditekan.
+                                </p>
                             </div>
-                        </form>
-                    </div>
 
-                    {/* Kolom Kanan: Quest Sidebar (Commented Out) */}
-                    {/* <div className="lg:col-span-1">
-                        <QuestSidebar formData={data} quests={quests} />
-                    </div> */}
-                    {/* </div> */}
+                        </div>
+                    </form>
                 </div>
             </div>
 
-            {/* --- PERBAIKAN: Modal untuk Live Preview --- */}
+            {/* PREVIEW MODAL */}
             {showPreviewModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300" onClick={() => setShowPreviewModal(false)}>
-                    <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] overflow-hidden flex flex-col shadow-2xl transform transition-all duration-300 scale-100" onClick={(e) => e.stopPropagation()}>
-                        <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
-                            <h2 className="text-xl font-bold text-gray-800">
-                                Live Preview Cover
-                            </h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+                        onClick={() => setShowPreviewModal(false)}
+                    />
+
+                    {/* Modal Content */}
+                    <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[85vh] transform transition-all animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-white">
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                📄 Pratinjau Cover
+                            </h3>
                             <button
                                 onClick={() => setShowPreviewModal(false)}
-                                className="text-gray-500 hover:text-gray-800 text-3xl font-light leading-none"
-                                aria-label="Tutup Pratinjau"
+                                className="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
                             >
-                                &times;
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
-                        <div className="flex-grow p-2 bg-gray-200 overflow-y-auto">
+                        
+                        <div className="flex-1 bg-slate-100 p-4 overflow-hidden">
                             {previewUrl ? (
                                 <iframe
                                     src={previewUrl}
-                                    title="Preview Laporan"
-                                    className="w-full h-full border-0 rounded" // Hilangkan border iframe jika tidak perlu
-                                    onLoad={() => URL.revokeObjectURL(previewUrl)} // Revoke URL setelah iframe selesai load
-                                ></iframe>
+                                    title="Preview"
+                                    className="w-full h-full rounded-lg shadow-sm bg-white"
+                                />
                             ) : (
-                                <div className="flex items-center justify-center h-full">
-                                    <p className="text-gray-500">Memuat pratinjau...</p>
+                                <div className="flex h-full items-center justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                                 </div>
                             )}
+                        </div>
+                        
+                        <div className="p-4 bg-white border-t border-slate-100 text-right">
+                             <button
+                                onClick={() => setShowPreviewModal(false)}
+                                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                            >
+                                Tutup Preview
+                            </button>
                         </div>
                     </div>
                 </div>

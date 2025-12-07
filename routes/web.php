@@ -1,10 +1,12 @@
 <?php
 
+
 use App\Http\Controllers\GameController;
-use App\Http\Controllers\ImageUploadController;
+use App\Http\Controllers\ImageController; // <--- PAKE INI YANG BENER
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportSectionController;
+use App\Http\Controllers\SectionController; // Buat Reorder
 use App\Http\Controllers\TemplateController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +17,6 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Di sini kita mendaftarkan semua rute untuk halaman web.
-| Rute API (untuk dipanggil oleh React) ada di routes/api.php.
-|
 */
 
 // --- Rute Publik (Landing Page) ---
@@ -41,8 +39,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // --- Rute Dashboard Utama ---
     Route::get('/dashboard', function () {
         $user = Auth::user();
-
-        // Ambil laporan dan template milik user dengan sections untuk progress calculation
         return Inertia::render('Dashboard', [
             'laporans' => $user->laporans()->with('sections')->latest()->get(),
             'templates' => $user->templates()->get(),
@@ -55,20 +51,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // --- RUTE FITUR LAPORAN ---
-    // Gunakan Route::resource sekali saja, ini sudah mencakup:
-    // index, create, store, show, edit, update, destroy
     Route::resource('laporan', LaporanController::class);
 
-    // Tambahkan rute-rute custom untuk Laporan di sini
+    // Custom Laporan Routes
     Route::get('/laporan/{laporan}/download-pdf', [LaporanController::class, 'downloadPdf'])->name('laporan.download.pdf');
     Route::get('/laporan/{laporan}/download-docx', [LaporanController::class, 'downloadDocx'])->name('laporan.download.docx');
     Route::post('/laporan/preview-live', [LaporanController::class, 'previewLive'])->name('laporan.preview.live');
     Route::get('/laporan/{laporan}/preview', [LaporanController::class, 'preview'])->name('laporan.preview');
 
-    // Rute untuk CRUD section/bab
+    // --- RUTE SECTION / BAB ---
+    // CRUD Section (Pake ReportSectionController)
     Route::post('/laporan/{laporan}/sections', [ReportSectionController::class, 'store'])->name('sections.store');
     Route::put('/sections/{section}', [ReportSectionController::class, 'update'])->name('sections.update');
     Route::delete('/sections/{section}', [ReportSectionController::class, 'destroy'])->name('sections.destroy');
+
+    // Drag & Drop Reorder (Pake SectionController yang baru kita buat)
+    Route::post('/sections/reorder', [SectionController::class, 'reorder'])->name('sections.reorder');
 
     // --- Rute Fitur Template ---
     Route::resource('templates', TemplateController::class)->only(['index', 'store', 'destroy']);
@@ -77,25 +75,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/templates/{template}/use/laporan/{laporan}', [TemplateController::class, 'useTemplate'])->name('templates.use.laporan');
     Route::post('/templates/{template}/apply/{laporan}', [TemplateController::class, 'apply'])->name('templates.apply');
 
-    // --- Rute Upload Gambar ---
-    Route::post('/upload-image', [ImageUploadController::class, 'store'])->name('images.upload');
+    // --- Rute Upload Gambar (FIXED) ---
+    // Ini pake ImageController yang baru kita bersihin
+    Route::post('/upload-image', [ImageController::class, 'store'])->name('images.upload');
 
-    // --- RUTE FITUR QUESTIFY / GAME ROOM ---
-    // Halaman Lobby: menampilkan semua topik & game
+    // --- RUTE FITUR QUESTIFY ---
     Route::get('/questify', [GameController::class, 'index'])->name('questify.index');
-    // Halaman Game: menampilkan game berdasarkan slug
     Route::get('/questify/{game:slug}', [GameController::class, 'show'])->name('questify.show');
 
-    Route::get('/templates', function () {
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                ['id' => 1, 'name' => 'Basic Layout', 'code' => 'display: flex;'],
-                ['id' => 2, 'name' => 'Center Chibi', 'code' => 'justify-content: center;']
-            ]
-        ]);
-    })->name('questify.templates');
+    // Route Import Template
+    Route::post('/laporan/{laporan}/import-template', [TemplateController::class, 'import'])
+        ->name('templates.import');
 });
 
-// --- Rute Autentikasi (login, register, dll) ---
 require __DIR__ . '/auth.php';

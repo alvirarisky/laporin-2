@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\File;
+
 // --- KITA PAKAI DUA-DUANYA ---
 use Inertia\Inertia; // Untuk Inertia
 use PhpOffice\PhpWord\IOFactory; // Untuk DOCX
@@ -126,7 +128,7 @@ class LaporanController extends Controller
 
                 if (in_array($type, $allowedTypes)) {
                     $data = file_get_contents($path);
-                    $previewData['base64Logo'] = 'data:'.$type.';base64,'.base64_encode($data);
+                    $previewData['base64Logo'] = 'data:' . $type . ';base64,' . base64_encode($data);
                 }
             } catch (\Exception $e) {
                 report($e);
@@ -136,58 +138,109 @@ class LaporanController extends Controller
         return view('reports.preview', $previewData);
     }
 
-    // --- METHOD 1: DOWNLOAD PDF (BROWSERSHOT - PUPPETEER) ---
+    // --- METHOD DOWNLOAD PDF (FINAL VERSION) ---
     public function downloadPdf(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
 
         try {
-            // Load relasi section dengan children
+            // 1. Load Data Lengkap
             $laporan->load(['sections' => function ($query) {
                 $query->orderBy('order');
             }, 'sections.children' => function ($query) {
                 $query->orderBy('order');
             }]);
 
-            // Process images in content to convert to absolute URLs or base64
+            // 2. CONVERT SEMUA GAMBAR JADI BASE64 (Biar Nongol di PDF)
+            // Kita proses konten HTML-nya sebelum dikirim ke view
             foreach ($laporan->sections as $section) {
                 if (!empty($section->content)) {
-                    $section->content = $this->processImagesForPdf($section->content);
+                    $section->content = $this->convertImagesToBase64($section->content);
                 }
                 foreach ($section->children as $child) {
                     if (!empty($child->content)) {
-                        $child->content = $this->processImagesForPdf($child->content);
+                        $child->content = $this->convertImagesToBase64($child->content);
                     }
                 }
             }
 
-            // Buat nama file
-            $filename = 'laporan-'.\Illuminate\Support\Str::slug($laporan->judul).'.pdf';
+            // 3. Ambil CSS Tailwind (Biar Tampilan Ganteng)
+            $cssPath = public_path('build/assets');
+            $cssContent = '';
+            if (File::exists($cssPath)) {
+                $files = File::files($cssPath);
+                foreach ($files as $file) {
+                    if ($file->getExtension() === 'css') {
+                        $cssContent .= File::get($file->getPathname());
+                    }
+                }
+            }
 
-            // Render view ke HTML string
+            // 4. Render HTML
             $html = View::make('reports.preview', [
                 'laporan' => $laporan,
+                'css_inline' => $cssContent,
+                'is_pdf_mode' => true // Penanda buat view
             ])->render();
 
-            // Generate PDF menggunakan Browsershot (Puppeteer) dengan streamDownload
-            return response()->streamDownload(function () use ($html) {
+            // 5. Setup Footer (Nomor Halaman)
+            // "pageNumber" adalah class ajaib dari Browsershot
+            $footerHtml = '
+                <div style="font-size: 10px; text-align: right; width: 100%; padding-right: 2cm; font-family: Times New Roman;">
+                    Halaman <span class="pageNumber"></span> dari <span class="totalPages"></span>
+                </div>';
+
+            $filename = 'laporan-' . \Illuminate\Support\Str::slug($laporan->judul) . '.pdf';
+
+            // 6. Generate PDF
+            return response()->streamDownload(function () use ($html, $footerHtml) {
                 echo Browsershot::html($html)
                     ->format('A4')
-                    ->margins(20, 20, 20, 20, 'mm')
-                    ->showBackground() // Wajib agar background gambar muncul
-                    ->showBrowserHeaderAndFooter() // Untuk nomor halaman otomatis
-                    ->waitUntilNetworkIdle() // Wajib agar gambar terload sebelum print
+                    // Margin kita set ada "bawah" agak lega buat footer
+                    ->margins(25, 25, 30, 25, 'mm')
+                    ->showBackground()
+                    ->hideBrowserHeaderAndFooter() // Hapus header bawaan Chrome
+                    ->options([
+                        'displayHeaderFooter' => true, // Aktifin Header/Footer Custom
+                        'footerTemplate' => $footerHtml, // Pasang Footer Kita
+                        'headerTemplate' => '<div></div>' // Header kosong
+                    ])
+                    ->waitUntilNetworkIdle()
                     ->pdf();
             }, $filename, [
                 'Content-Type' => 'application/pdf',
             ]);
-
         } catch (\Exception $e) {
-            // Tangani error jika Browsershot gagal
             report($e);
-
-            return redirect()->back()->with('error', 'Gagal membuat file PDF: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Gagal generate PDF: ' . $e->getMessage());
         }
+    }
+
+    // --- HELPER BARU: GAMBAR JADI BASE64 (ANTI GAGAL) ---
+    private function convertImagesToBase64($html)
+    {
+        // Cari semua tag <img>
+        return preg_replace_callback('/<img[^>]+src="([^">]+)"/', function ($matches) {
+            $src = $matches[1];
+
+            // Cek apakah ini gambar lokal (bukan http/https luar)
+            // Asumsi URL gambar lu formatnya: http://localhost/storage/uploads/gambar.jpg
+            if (strpos($src, 'storage/') !== false) {
+                // Ambil path relatif setelah 'storage/'
+                $relativePath = substr($src, strpos($src, 'storage/') + 8);
+                $fullPath = storage_path('app/public/' . $relativePath);
+
+                if (file_exists($fullPath)) {
+                    $type = pathinfo($fullPath, PATHINFO_EXTENSION);
+                    $data = file_get_contents($fullPath);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+
+                    // Ganti src lama dengan base64
+                    return str_replace($src, $base64, $matches[0]);
+                }
+            }
+            return $matches[0]; // Kalau gak ketemu, balikin aslinya
+        }, $html);
     }
 
     // --- METHOD 2: DOWNLOAD DOCX (TEKS POLOSAN, TAPI AMAN DARI CRASH/KORUP) ---
@@ -217,24 +270,26 @@ class LaporanController extends Controller
 
             // === SECTION 1: COVER === (Sama seperti sebelumnya)
             $coverSection = $phpWord->addSection([
-                'marginTop' => Converter::cmToTwip(3), 'marginBottom' => Converter::cmToTwip(3),
-                'marginLeft' => Converter::cmToTwip(4), 'marginRight' => Converter::cmToTwip(3),
+                'marginTop' => Converter::cmToTwip(3),
+                'marginBottom' => Converter::cmToTwip(3),
+                'marginLeft' => Converter::cmToTwip(4),
+                'marginRight' => Converter::cmToTwip(3),
             ]);
 
             // Style paragraf dengan spaceAfter untuk spacing yang lebih baik
             $paraStyleCenter = ['align' => 'center', 'spaceAfter' => Converter::cmToTwip(0.5)];
             $paraStyleCenterLarge = ['align' => 'center', 'spaceAfter' => Converter::cmToTwip(1)];
-            
+
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->judul)), ['size' => 16, 'bold' => true], $paraStyleCenterLarge);
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->report_type)), ['size' => 14, 'bold' => true], $paraStyleCenterLarge);
-            
+
             if ($laporan->logo_path && Storage::disk('public')->exists($laporan->logo_path)) {
                 $logoFullPath = Storage::disk('public')->path($laporan->logo_path);
                 $coverSection->addImage($logoFullPath, ['width' => Converter::cmToPixel(2.5), 'height' => Converter::cmToPixel(2.5), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
             }
-            
+
             $coverSection->addText('Disusun Oleh:', ['size' => 12], $paraStyleCenter);
-            $coverSection->addText(htmlspecialchars($laporan->nama).' ('.htmlspecialchars($laporan->nim).')', ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
+            $coverSection->addText(htmlspecialchars($laporan->nama) . ' (' . htmlspecialchars($laporan->nim) . ')', ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
             $coverSection->addText('Dosen Pengampu:', ['size' => 12], $paraStyleCenter);
             $coverSection->addText(htmlspecialchars($laporan->dosen_pembimbing), ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->prodi)), $boldUpper, $paraStyleCenter);
@@ -245,8 +300,10 @@ class LaporanController extends Controller
 
             // === SECTION 2: DAFTAR ISI === (Sama seperti sebelumnya)
             $tocSection = $phpWord->addSection([
-                'marginTop' => Converter::cmToTwip(3), 'marginBottom' => Converter::cmToTwip(3),
-                'marginLeft' => Converter::cmToTwip(4), 'marginRight' => Converter::cmToTwip(3),
+                'marginTop' => Converter::cmToTwip(3),
+                'marginBottom' => Converter::cmToTwip(3),
+                'marginLeft' => Converter::cmToTwip(4),
+                'marginRight' => Converter::cmToTwip(3),
             ]);
             $tocSection->addTitle('DAFTAR ISI', 0);
             $tocSection->addTextBreak(1);
@@ -260,8 +317,10 @@ class LaporanController extends Controller
 
             if ($laporan->sections->isNotEmpty()) {
                 $contentSection = $phpWord->addSection([
-                    'marginTop' => Converter::cmToTwip(3), 'marginBottom' => Converter::cmToTwip(3),
-                    'marginLeft' => Converter::cmToTwip(4), 'marginRight' => Converter::cmToTwip(3),
+                    'marginTop' => Converter::cmToTwip(3),
+                    'marginBottom' => Converter::cmToTwip(3),
+                    'marginLeft' => Converter::cmToTwip(4),
+                    'marginRight' => Converter::cmToTwip(3),
                 ]);
 
                 // Style paragraf standar
@@ -316,27 +375,26 @@ class LaporanController extends Controller
             }
 
             // Nama file download
-            $filename = 'laporan-'.\Illuminate\Support\Str::slug($laporan->judul).'.docx';
+            $filename = 'laporan-' . \Illuminate\Support\Str::slug($laporan->judul) . '.docx';
 
             // Hapus buffer sebelum kirim header
             ob_end_clean();
 
             // Set header untuk download DOCX
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            header('Content-Disposition: attachment;filename="'.$filename.'"');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
             header('Cache-Control: max-age=0');
 
             // Simpan ke output
             $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
             $objWriter->save('php://output');
             exit;
-
         } catch (\Exception $e) {
             // Tangani error jika PhpWord gagal
             ob_end_clean();
             report($e);
 
-            return redirect()->back()->with('error', 'Gagal membuat file DOCX: '.$e->getMessage().' (File: '.basename($e->getFile()).' Baris: '.$e->getLine().')');
+            return redirect()->back()->with('error', 'Gagal membuat file DOCX: ' . $e->getMessage() . ' (File: ' . basename($e->getFile()) . ' Baris: ' . $e->getLine() . ')');
         }
     }
 
@@ -374,18 +432,18 @@ class LaporanController extends Controller
     {
         // Pattern untuk match img tags
         $pattern = '/<img([^>]*?)>/i';
-        
+
         $figureCounter = 0;
         $baseUrl = config('app.url');
-        
+
         $processed = preg_replace_callback($pattern, function ($matches) use (&$figureCounter, $baseUrl) {
             $figureCounter++;
             $imgAttrs = $matches[1];
-            
+
             // Extract src
             preg_match('/src=["\']([^"\']*)["\']/', $imgAttrs, $srcMatch);
             $src = $srcMatch[1] ?? '';
-            
+
             // Convert relative URL to absolute URL
             if (!empty($src)) {
                 if (strpos($src, 'http') !== 0 && strpos($src, 'data:') !== 0) {
@@ -401,15 +459,15 @@ class LaporanController extends Controller
                     }
                 }
             }
-            
+
             // Extract alt text
             preg_match('/alt=["\']([^"\']*)["\']/', $imgAttrs, $altMatch);
             $altText = $altMatch[1] ?? '';
-            
+
             // Remove old src and add new absolute src
             $imgAttrs = preg_replace('/src=["\'][^"\']*["\']/', '', $imgAttrs);
             $imgAttrs = 'src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" ' . $imgAttrs;
-            
+
             // Create figure wrapper
             return sprintf(
                 '<figure style="margin: 1em 0; text-align: center;"><img%s style="max-width: 100%%; height: auto; object-fit: contain; display: block; margin: 0 auto;"><figcaption style="font-size: 10pt; font-style: italic; margin-top: 5px; text-align: center;">Gambar %d: %s</figcaption></figure>',
@@ -418,7 +476,7 @@ class LaporanController extends Controller
                 htmlspecialchars($altText, ENT_QUOTES, 'UTF-8')
             );
         }, $html);
-        
+
         return $processed ?? $html;
     }
 

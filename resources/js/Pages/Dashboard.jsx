@@ -1,309 +1,263 @@
-import Modal from '@/Components/Modal';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import Modal from "@/Components/Modal";
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import { Head, Link } from "@inertiajs/react";
+import { useState } from "react";
 
 export default function Dashboard({ auth, laporans, templates }) {
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const laporanList = laporans ?? [];
 
+    // Helper: Format Tanggal
+    const formatDate = (dateString) => {
+        if (!dateString) return "Belum diedit";
+        return new Date(dateString).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+        });
+    };
+
+    // Helper: Hitung Progress
+    const calculateProgress = (sections) => {
+        if (!sections || sections.length === 0) return 0;
+        const filled = sections.filter(s => s.content && s.content.trim().length > 0).length;
+        return Math.round((filled / sections.length) * 100);
+    };
+
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-                            Selamat datang kembali, {auth.user.name}
+                        {/* REVISI: Pake warna solid aja biar aman dan kontras */}
+                        <h2 className="text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
+                            Selamat datang, {auth.user.name} 👋
                         </h2>
-                        <p className="mt-1 text-sm text-slate-400">
-                            Kelola laporan akademik dan lanjutkan perjalanan
-                            belajar kamu bersama Questify.
+                        <p className="mt-2 text-sm text-slate-500 max-w-2xl">
+                            Siap produktif hari ini? Kelola laporan akademik dan asah skill coding kamu di satu tempat.
                         </p>
+                    </div>
+                    <div className="hidden md:block">
                     </div>
                 </div>
             }
         >
-            <Head title="Dashboard – Laporin" />
+            <Head title="Dashboard" />
 
-            <div className="space-y-6 pb-8 pt-2">
-                {/* Kartu fitur utama */}
+            <div className="py-8 space-y-8">
+                
+                {/* 1. SECTION: HERO CARDS */}
                 <section className="grid gap-6 md:grid-cols-2">
-                    <div className="group flex flex-col justify-between rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl shadow-sky-900/40 hover:shadow-2xl hover:shadow-sky-900/60 transition-all duration-300 hover:scale-[1.02]">
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <span className="text-2xl">🎮</span>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
-                                Questify
-                            </p>
+                    {/* Card Questify */}
+                    <div className="group relative overflow-hidden rounded-3xl bg-white p-8 shadow-md ring-1 ring-slate-100 transition-all hover:shadow-xl hover:ring-sky-200 hover:-translate-y-1">
+                        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-sky-50 transition-all group-hover:bg-sky-100 blur-3xl" />
+                        
+                        <div className="relative z-10 flex flex-col h-full justify-between">
+                            <div>
+                                <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-sky-50 px-3 py-1.5 text-sky-700 border border-sky-100">
+                                    <span className="text-lg">🎮</span>
+                                    <span className="text-xs font-bold uppercase tracking-wide">Questify Mode</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-800">
+                                    Asah Logika & SQL
+                                </h3>
+                                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                                    Belajar coding nggak perlu ngebosenin. Selesaikan level, raih XP, dan pahami materi lewat tantangan interaktif.
+                                </p>
                             </div>
-                            <h3 className="mt-1 text-xl font-bold text-slate-50">
-                                Asah logika & SQL lewat quest interaktif
-                            </h3>
-                            <p className="mt-3 text-sm text-slate-300 leading-relaxed">
-                                Pilih topik, selesaikan level, dan pantau
-                                progres belajarmu secara bertahap seperti game.
-                            </p>
+                            
+                            <Link
+                                href={route("questify.index")}
+                                className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition-all hover:bg-slate-800 hover:scale-[1.02]"
+                            >
+                                <span>Mainkan Questify</span>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </Link>
                         </div>
-                        <Link
-                            href={route('questify.index')}
-                            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-sky-500/40 transition-all duration-200 hover:bg-sky-400 hover:shadow-xl hover:shadow-sky-500/50 hover:scale-105"
-                        >
-                            <span>Masuk ke Questify</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </Link>
                     </div>
 
-                    <div className="group flex flex-col justify-between rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl shadow-emerald-900/40 hover:shadow-2xl hover:shadow-emerald-900/60 transition-all duration-300 hover:scale-[1.02]">
-                        <div>
-                            <div className="flex items-center gap-2 mb-3">
-                                <span className="text-2xl">📝</span>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
-                                Generator Laporan
-                            </p>
+                    {/* Card Laporan */}
+                    <div className="group relative overflow-hidden rounded-3xl bg-white p-8 shadow-md ring-1 ring-slate-100 transition-all hover:shadow-xl hover:ring-emerald-200 hover:-translate-y-1">
+                        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-50 transition-all group-hover:bg-emerald-100 blur-3xl" />
+                        
+                        <div className="relative z-10 flex flex-col h-full justify-between">
+                            <div>
+                                <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-emerald-700 border border-emerald-100">
+                                    <span className="text-lg">📝</span>
+                                    <span className="text-xs font-bold uppercase tracking-wide">Report Builder</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-800">
+                                    Buat Laporan Instan
+                                </h3>
+                                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                                    Nggak perlu pusing mikirin format. Gunakan template standar kampus, isi konten per bab, dan export ke PDF/Word.
+                                </p>
                             </div>
-                            <h3 className="mt-1 text-xl font-bold text-slate-50">
-                                Susun laporan akademik dengan struktur rapi
-                            </h3>
-                            <p className="mt-3 text-sm text-slate-300 leading-relaxed">
-                                Gunakan template kampus, kelola bab per bagian,
-                                dan dapatkan preview sebelum diunduh.
-                            </p>
+
+                            <Link
+                                href={route("laporan.create")}
+                                className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition-all hover:bg-emerald-500 hover:scale-[1.02]"
+                            >
+                                <span>+ Buat Laporan Baru</span>
+                            </Link>
                         </div>
-                        <Link
-                            href={route('laporan.create')}
-                            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition-all duration-200 hover:bg-emerald-400 hover:shadow-xl hover:shadow-emerald-500/50 hover:scale-105"
-                        >
-                            <span>+ Buat Laporan Baru</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                        </Link>
                     </div>
                 </section>
 
-                {/* Ringkasan cepat */}
-                <section className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Total laporan
-                        </p>
-                            <span className="text-lg">📊</span>
+                {/* 2. SECTION: STATS SUMMARY */}
+                <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    {[
+                        { label: "Total Laporan", value: laporans?.length ?? 0, icon: "📊", color: "text-blue-600", bg: "bg-blue-50" },
+                        { label: "Template Aktif", value: templates?.length ?? 0, icon: "📋", color: "text-purple-600", bg: "bg-purple-50" },
+                        { label: "Draft Disimpan", value: laporans?.filter(l => calculateProgress(l.sections) < 100).length ?? 0, icon: "💾", color: "text-amber-600", bg: "bg-amber-50" },
+                        { label: "Selesai", value: laporans?.filter(l => calculateProgress(l.sections) === 100).length ?? 0, icon: "✅", color: "text-emerald-600", bg: "bg-emerald-50" },
+                    ].map((stat, idx) => (
+                        <div key={idx} className="flex flex-col rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition hover:shadow-md">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${stat.bg}`}>
+                                    <span className="text-lg">{stat.icon}</span>
+                                </div>
+                                <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                    {stat.label}
+                                </dt>
+                            </div>
+                            <dd className={`mt-4 text-3xl font-bold ${stat.color}`}>
+                                {stat.value}
+                            </dd>
                         </div>
-                        <p className="mt-2 text-3xl font-bold text-slate-50">
-                            {laporans?.length ?? 0}
-                        </p>
-                        <p className="mt-2 text-xs text-slate-400">
-                            Laporan yang tersimpan di akun kamu.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Template aktif
-                        </p>
-                            <span className="text-lg">📋</span>
-                        </div>
-                        <p className="mt-2 text-3xl font-bold text-slate-50">
-                            {templates?.length ?? 0}
-                        </p>
-                        <p className="mt-2 text-xs text-slate-400">
-                            Template laporan yang siap dipakai ulang.
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Mode belajar
-                        </p>
-                            <span className="text-lg">🎓</span>
-                        </div>
-                        <p className="mt-2 text-lg font-bold text-slate-50">
-                            Laporan & Questify
-                        </p>
-                        <p className="mt-2 text-xs text-slate-400">
-                            Kombinasikan penulisan laporan dengan latihan soal
-                            interaktif.
-                        </p>
-                    </div>
+                    ))}
                 </section>
 
-                {/* Riwayat laporan terbaru */}
-                <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
-                    <div className="flex items-center justify-between gap-2 mb-6">
+                {/* 3. SECTION: RECENT WORK */}
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-100">
-                            Riwayat laporan terbaru
-                        </h3>
-                            <p className="text-xs text-slate-400 mt-1">
-                                Laporan yang baru saja kamu buat atau edit
+                            <h3 className="text-lg font-bold text-slate-800">
+                                Lanjutkan Pengerjaan
+                            </h3>
+                            <p className="text-sm text-slate-500">
+                                File yang terakhir kamu buka atau edit.
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowHistoryModal(true)}
-                            className="text-xs font-semibold text-sky-300 hover:text-sky-200 transition px-3 py-1.5 rounded-lg hover:bg-sky-500/10"
-                        >
-                            Lihat semua →
-                        </button>
+                        {laporanList.length > 0 && (
+                            <button
+                                onClick={() => setShowHistoryModal(true)}
+                                className="group flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                            >
+                                Lihat Semua
+                                <span className="transition-transform group-hover:translate-x-1">→</span>
+                            </button>
+                        )}
                     </div>
 
-                    {laporanList.length === 0 && (
-                        <div className="text-center py-12 px-4 rounded-2xl bg-slate-950/40 border border-dashed border-slate-700">
-                            <span className="text-4xl mb-3 block">📄</span>
-                            <p className="text-sm text-slate-400">
-                            Belum ada laporan yang tersimpan. Mulai dari tombol{' '}
-                            <span className="font-semibold text-emerald-300">
-                                    "Buat Laporan Baru"
-                            </span>{' '}
-                            di atas.
-                        </p>
+                    {laporanList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-12">
+                            <div className="mb-3 rounded-full bg-white p-4 shadow-sm border border-slate-100">
+                                <span className="text-2xl">📭</span>
+                            </div>
+                            <h4 className="text-base font-semibold text-slate-800">Belum ada laporan</h4>
+                            <p className="mt-1 max-w-sm text-center text-sm text-slate-500">
+                                Mulai buat laporan pertamamu dengan menekan tombol hijau di atas.
+                            </p>
                         </div>
-                    )}
-
-                    {laporanList.length > 0 && (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {laporanList.slice(0, 6).map((laporan) => {
-                                // Calculate progress based on sections with content
-                                const totalSections = laporan.sections?.length || 0;
-                                const filledSections = laporan.sections?.filter(s => s.content && s.content.trim().length > 0).length || 0;
-                                const progress = totalSections > 0 ? Math.round((filledSections / totalSections) * 100) : 0;
+                    ) : (
+                        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                            {laporanList.slice(0, 3).map((laporan) => {
+                                const progress = calculateProgress(laporan.sections);
+                                const isComplete = progress === 100;
                                 
-                                // Format date
-                                const lastEdited = laporan.updated_at 
-                                    ? new Date(laporan.updated_at).toLocaleDateString('id-ID', { 
-                                        day: 'numeric', 
-                                        month: 'short', 
-                                        year: 'numeric' 
-                                    })
-                                    : 'Belum pernah diedit';
-
                                 return (
-                                    <div
-                                        key={laporan.id}
-                                        className="group rounded-xl border border-slate-800 bg-slate-950/40 p-5 hover:bg-slate-950/60 hover:border-slate-700 hover:shadow-xl transition-all duration-200"
-                                    >
-                                        <div className="flex items-start justify-between gap-3 mb-3">
-                                            <h4 className="text-sm font-semibold text-slate-100 line-clamp-2 flex-1">
-                                                    {laporan.judul ??
-                                                        laporan.title ??
-                                                        'Laporan tanpa judul'}
-                                            </h4>
-                                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
-                                                progress === 100 
-                                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                            }`}>
-                                                {progress === 100 ? 'Selesai' : 'Draft'}
-                                            </span>
-                                        </div>
-                                        
-                                        {/* Badge Mata Kuliah */}
-                                        {laporan.mata_kuliah && (
-                                            <div className="mb-3">
-                                                <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                                    {laporan.mata_kuliah}
+                                    <div key={laporan.id} className="group relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-1 hover:border-sky-200 hover:shadow-xl hover:shadow-sky-900/5">
+                                        <div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1">
+                                                    <h4 className="font-semibold text-slate-800 line-clamp-1" title={laporan.judul}>
+                                                        {laporan.judul || "Tanpa Judul"}
+                                                    </h4>
+                                                    <p className="mt-1 text-xs font-medium text-slate-500">
+                                                        {laporan.mata_kuliah || "Matkul Umum"}
+                                                    </p>
+                                                </div>
+                                                <span className={`flex h-6 items-center rounded-full px-2 text-[10px] font-bold uppercase tracking-wide ${
+                                                    isComplete 
+                                                        ? "bg-emerald-100 text-emerald-700" 
+                                                        : "bg-amber-100 text-amber-700"
+                                                }`}>
+                                                    {isComplete ? "Selesai" : "Draft"}
                                                 </span>
                                             </div>
-                                        )}
 
-                                        {/* Progress Bar */}
-                                        <div className="mb-3">
-                                            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                                                <span>Progress</span>
-                                                <span className="font-semibold text-slate-300">{progress}%</span>
-                                            </div>
-                                            <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                                                <div 
-                                                    className={`h-full transition-all duration-300 ${
-                                                        progress === 100 ? 'bg-emerald-500' : 'bg-indigo-500'
-                                                    }`}
-                                                    style={{ width: `${progress}%` }}
-                                                />
+                                            <div className="mt-5 mb-4">
+                                                <div className="flex items-end justify-between text-xs mb-1.5">
+                                                    <span className="text-slate-500">Progress Kelengkapan</span>
+                                                    <span className="font-bold text-slate-700">{progress}%</span>
+                                                </div>
+                                                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                                                    <div 
+                                                        className={`h-full rounded-full transition-all duration-500 ease-out ${isComplete ? 'bg-emerald-500' : 'bg-sky-500'}`} 
+                                                        style={{ width: `${progress}%` }} 
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Last Edited */}
-                                        <p className="text-xs text-slate-400 mb-3">
-                                            Terakhir diedit: {lastEdited}
-                                        </p>
-
-                                        {/* Action Button */}
-                                                <Link
-                                            href={route('laporan.edit', laporan.id)}
-                                            className="block w-full text-center px-4 py-2 text-xs font-semibold text-sky-300 hover:text-sky-200 bg-sky-500/10 hover:bg-sky-500/20 rounded-lg transition-all duration-200"
-                                                >
-                                            Buka Editor →
-                                                </Link>
+                                        <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-4">
+                                            <span className="text-xs text-slate-400">
+                                                {formatDate(laporan.updated_at)}
+                                            </span>
+                                            <Link
+                                                href={route("laporan.edit", laporan.id)}
+                                                className="text-xs font-bold text-sky-600 decoration-2 underline-offset-2 hover:underline"
+                                            >
+                                                Lanjutkan →
+                                            </Link>
+                                        </div>
                                     </div>
                                 );
                             })}
                         </div>
                     )}
                 </section>
-            </div>
 
-            <Modal show={showHistoryModal} onClose={() => setShowHistoryModal(false)}>
-                <div className="space-y-4 p-6 text-slate-100">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h3 className="text-lg font-semibold text-slate-50">
-                                Riwayat laporan lengkap
-                            </h3>
-                            <p className="text-xs text-slate-400">
-                                Semua laporan yang pernah kamu simpan ditampilkan di sini.
-                            </p>
+                {/* MODAL RIWAYAT */}
+                <Modal show={showHistoryModal} onClose={() => setShowHistoryModal(false)}>
+                    <div className="p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-slate-800">Riwayat Semua Laporan</h3>
+                            <button onClick={() => setShowHistoryModal(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                                ✕
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowHistoryModal(false)}
-                            className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 transition hover:border-slate-500 hover:text-white"
-                        >
-                            Tutup
-                        </button>
-                    </div>
-
-                    {laporanList.length === 0 && (
-                        <p className="text-sm text-slate-400">
-                            Belum ada laporan. Mulai buat laporan pertama kamu untuk melihat riwayat di sini.
-                        </p>
-                    )}
-
-                    {laporanList.length > 0 && (
-                        <div className="max-h-80 space-y-3 overflow-y-auto pr-2">
+                        
+                        <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-200">
                             {laporanList.map((laporan) => (
-                                <div
-                                    key={laporan.id}
-                                    className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3 text-sm"
-                                >
-                                    <p className="font-semibold text-slate-50">
-                                        {laporan.judul ?? laporan.title ?? 'Laporan tanpa judul'}
-                                    </p>
-                                    <p className="text-xs text-slate-400">
-                                        Dibuat: {laporan.created_at}
-                                    </p>
-                                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                <div key={laporan.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50">
+                                    <div>
+                                        <h4 className="font-semibold text-slate-800">{laporan.judul || "Tanpa Judul"}</h4>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            Dibuat: {formatDate(laporan.created_at)}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2">
                                         <Link
-                                            href={route('laporan.edit', laporan.id)}
-                                            className="rounded-full bg-sky-500/20 px-3 py-1 font-semibold text-sky-200 ring-1 ring-sky-500/40 transition hover:bg-sky-500/30"
-                                        >
-                                            Buka & sunting
-                                        </Link>
-                                        <Link
-                                            href={route('laporan.preview', laporan.id)}
-                                            className="rounded-full border border-slate-700 px-3 py-1 text-slate-200 transition hover:border-slate-500"
+                                            href={route("laporan.preview", laporan.id)}
+                                            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-white hover:text-slate-900"
                                         >
                                             Preview
+                                        </Link>
+                                        <Link
+                                            href={route("laporan.edit", laporan.id)}
+                                            className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-500"
+                                        >
+                                            Edit
                                         </Link>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
-            </Modal>
+                    </div>
+                </Modal>
+            </div>
         </AuthenticatedLayout>
     );
 }
