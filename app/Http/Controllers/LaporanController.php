@@ -3,12 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Laporan;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Spatie\Browsershot\Browsershot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
 // --- KITA PAKAI DUA-DUANYA ---
-use Inertia\Inertia; // Untuk PDF
+use Inertia\Inertia; // Untuk Inertia
 use PhpOffice\PhpWord\IOFactory; // Untuk DOCX
 use PhpOffice\PhpWord\PhpWord; // Untuk DOCX
 use PhpOffice\PhpWord\Shared\Converter; // Untuk DOCX
@@ -23,7 +24,10 @@ class LaporanController extends Controller
 
     public function index()
     {
-        $laporans = Laporan::where('user_id', Auth::id())->latest()->get();
+        $laporans = Laporan::where('user_id', Auth::id())
+            ->with('sections')
+            ->latest()
+            ->get();
 
         return Inertia::render('Laporan/Index', ['laporans' => $laporans]);
     }
@@ -82,8 +86,15 @@ class LaporanController extends Controller
     {
         $this->authorize('update', $laporan);
 
+        // Load sections dengan children (nested structure)
+        $laporan->load(['sections' => function ($query) {
+            $query->orderBy('order');
+        }, 'sections.children' => function ($query) {
+            $query->orderBy('order');
+        }]);
+
         return Inertia::render('Laporan/Edit', [
-            'laporan' => $laporan->load('sections'),
+            'laporan' => $laporan,
         ]);
     }
 
@@ -125,31 +136,54 @@ class LaporanController extends Controller
         return view('reports.preview', $previewData);
     }
 
-    // --- METHOD 1: DOWNLOAD PDF (RAPI JALI) ---
+    // --- METHOD 1: DOWNLOAD PDF (BROWSERSHOT - PUPPETEER) ---
     public function downloadPdf(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
 
         try {
-            // Load relasi section
-            $laporan->load('sections');
+            // Load relasi section dengan children
+            $laporan->load(['sections' => function ($query) {
+                $query->orderBy('order');
+            }, 'sections.children' => function ($query) {
+                $query->orderBy('order');
+            }]);
+
+            // Process images in content to convert to absolute URLs or base64
+            foreach ($laporan->sections as $section) {
+                if (!empty($section->content)) {
+                    $section->content = $this->processImagesForPdf($section->content);
+                }
+                foreach ($section->children as $child) {
+                    if (!empty($child->content)) {
+                        $child->content = $this->processImagesForPdf($child->content);
+                    }
+                }
+            }
+
             // Buat nama file
             $filename = 'laporan-'.\Illuminate\Support\Str::slug($laporan->judul).'.pdf';
 
-            // Load view 'reports.preview' dan passing data laporan
-            // Dompdf akan merender view ini ke PDF
-            $pdf = Pdf::loadView('reports.preview', [
+            // Render view ke HTML string
+            $html = View::make('reports.preview', [
                 'laporan' => $laporan,
+            ])->render();
+
+            // Generate PDF menggunakan Browsershot (Puppeteer) dengan streamDownload
+            return response()->streamDownload(function () use ($html) {
+                echo Browsershot::html($html)
+                    ->format('A4')
+                    ->margins(20, 20, 20, 20, 'mm')
+                    ->showBackground() // Wajib agar background gambar muncul
+                    ->showBrowserHeaderAndFooter() // Untuk nomor halaman otomatis
+                    ->waitUntilNetworkIdle() // Wajib agar gambar terload sebelum print
+                    ->pdf();
+            }, $filename, [
+                'Content-Type' => 'application/pdf',
             ]);
 
-            // Set ukuran kertas dan orientasi
-            $pdf->setPaper('A4', 'portrait');
-
-            // Download file PDF
-            return $pdf->download($filename);
-
         } catch (\Exception $e) {
-            // Tangani error jika Dompdf gagal
+            // Tangani error jika Browsershot gagal
             report($e);
 
             return redirect()->back()->with('error', 'Gagal membuat file PDF: '.$e->getMessage());
@@ -187,27 +221,26 @@ class LaporanController extends Controller
                 'marginLeft' => Converter::cmToTwip(4), 'marginRight' => Converter::cmToTwip(3),
             ]);
 
-            $coverSection->addText(htmlspecialchars(strtoupper($laporan->judul)), ['size' => 16, 'bold' => true], $centerStyle);
-            $coverSection->addTextBreak(1);
-            $coverSection->addText(htmlspecialchars(strtoupper($laporan->report_type)), ['size' => 14, 'bold' => true], $centerStyle);
-            $coverSection->addTextBreak(2);
+            // Style paragraf dengan spaceAfter untuk spacing yang lebih baik
+            $paraStyleCenter = ['align' => 'center', 'spaceAfter' => Converter::cmToTwip(0.5)];
+            $paraStyleCenterLarge = ['align' => 'center', 'spaceAfter' => Converter::cmToTwip(1)];
+            
+            $coverSection->addText(htmlspecialchars(strtoupper($laporan->judul)), ['size' => 16, 'bold' => true], $paraStyleCenterLarge);
+            $coverSection->addText(htmlspecialchars(strtoupper($laporan->report_type)), ['size' => 14, 'bold' => true], $paraStyleCenterLarge);
+            
             if ($laporan->logo_path && Storage::disk('public')->exists($laporan->logo_path)) {
                 $logoFullPath = Storage::disk('public')->path($laporan->logo_path);
                 $coverSection->addImage($logoFullPath, ['width' => Converter::cmToPixel(2.5), 'height' => Converter::cmToPixel(2.5), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
-            } else {
-                $coverSection->addTextBreak(2);
             }
-            $coverSection->addTextBreak(3);
-            $coverSection->addText('Disusun Oleh:', ['size' => 12], $centerStyle);
-            $coverSection->addText(htmlspecialchars($laporan->nama).' ('.htmlspecialchars($laporan->nim).')', ['size' => 12, 'bold' => true], $centerStyle);
-            $coverSection->addTextBreak(3);
-            $coverSection->addText('Dosen Pengampu:', ['size' => 12], $centerStyle);
-            $coverSection->addText(htmlspecialchars($laporan->dosen_pembimbing), ['size' => 12, 'bold' => true], $centerStyle);
-            $coverSection->addTextBreak(5);
-            $coverSection->addText(htmlspecialchars(strtoupper($laporan->prodi)), $boldUpper, $centerStyle);
-            $coverSection->addText(htmlspecialchars(strtoupper($laporan->instansi)), $boldUpper, $centerStyle);
-            $coverSection->addText(htmlspecialchars(strtoupper($laporan->kota)), $boldUpper, $centerStyle);
-            $coverSection->addText(htmlspecialchars($laporan->tahun_ajaran), $boldUpper, $centerStyle);
+            
+            $coverSection->addText('Disusun Oleh:', ['size' => 12], $paraStyleCenter);
+            $coverSection->addText(htmlspecialchars($laporan->nama).' ('.htmlspecialchars($laporan->nim).')', ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
+            $coverSection->addText('Dosen Pengampu:', ['size' => 12], $paraStyleCenter);
+            $coverSection->addText(htmlspecialchars($laporan->dosen_pembimbing), ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
+            $coverSection->addText(htmlspecialchars(strtoupper($laporan->prodi)), $boldUpper, $paraStyleCenter);
+            $coverSection->addText(htmlspecialchars(strtoupper($laporan->instansi)), $boldUpper, $paraStyleCenter);
+            $coverSection->addText(htmlspecialchars(strtoupper($laporan->kota)), $boldUpper, $paraStyleCenter);
+            $coverSection->addText(htmlspecialchars($laporan->tahun_ajaran), $boldUpper, ['align' => 'center', 'spaceAfter' => 0]);
             $coverSection->addPageBreak();
 
             // === SECTION 2: DAFTAR ISI === (Sama seperti sebelumnya)
@@ -312,7 +345,81 @@ class LaporanController extends Controller
     {
         $this->authorize('update', $laporan);
 
-        return view('reports.preview', ['laporan' => $laporan->load('sections')]);
+        // Load sections dengan children dan urutkan
+        $laporan->load(['sections' => function ($query) {
+            $query->orderBy('order');
+        }, 'sections.children' => function ($query) {
+            $query->orderBy('order');
+        }]);
+
+        // Process images in content to add figure/figcaption wrappers for better PDF rendering
+        foreach ($laporan->sections as $section) {
+            if (!empty($section->content)) {
+                $section->content = $this->processImagesForPdf($section->content);
+            }
+            foreach ($section->children as $child) {
+                if (!empty($child->content)) {
+                    $child->content = $this->processImagesForPdf($child->content);
+                }
+            }
+        }
+
+        return view('reports.preview', ['laporan' => $laporan]);
+    }
+
+    /**
+     * Helper: Process images in HTML content to convert to absolute URLs and add figure/figcaption wrappers
+     */
+    private function processImagesForPdf(string $html): string
+    {
+        // Pattern untuk match img tags
+        $pattern = '/<img([^>]*?)>/i';
+        
+        $figureCounter = 0;
+        $baseUrl = config('app.url');
+        
+        $processed = preg_replace_callback($pattern, function ($matches) use (&$figureCounter, $baseUrl) {
+            $figureCounter++;
+            $imgAttrs = $matches[1];
+            
+            // Extract src
+            preg_match('/src=["\']([^"\']*)["\']/', $imgAttrs, $srcMatch);
+            $src = $srcMatch[1] ?? '';
+            
+            // Convert relative URL to absolute URL
+            if (!empty($src)) {
+                if (strpos($src, 'http') !== 0 && strpos($src, 'data:') !== 0) {
+                    // Relative path, convert to absolute
+                    if (strpos($src, '/storage/') === 0 || strpos($src, '/uploads/') === 0) {
+                        $src = $baseUrl . $src;
+                    } else {
+                        // Try to get full path from storage
+                        $storagePath = str_replace('/storage/', '', $src);
+                        if (Storage::disk('public')->exists($storagePath)) {
+                            $src = $baseUrl . '/storage/' . $storagePath;
+                        }
+                    }
+                }
+            }
+            
+            // Extract alt text
+            preg_match('/alt=["\']([^"\']*)["\']/', $imgAttrs, $altMatch);
+            $altText = $altMatch[1] ?? '';
+            
+            // Remove old src and add new absolute src
+            $imgAttrs = preg_replace('/src=["\'][^"\']*["\']/', '', $imgAttrs);
+            $imgAttrs = 'src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" ' . $imgAttrs;
+            
+            // Create figure wrapper
+            return sprintf(
+                '<figure style="margin: 1em 0; text-align: center;"><img%s style="max-width: 100%%; height: auto; object-fit: contain; display: block; margin: 0 auto;"><figcaption style="font-size: 10pt; font-style: italic; margin-top: 5px; text-align: center;">Gambar %d: %s</figcaption></figure>',
+                $imgAttrs,
+                $figureCounter,
+                htmlspecialchars($altText, ENT_QUOTES, 'UTF-8')
+            );
+        }, $html);
+        
+        return $processed ?? $html;
     }
 
     /**

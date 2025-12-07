@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\ImageUploadController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportSectionController;
@@ -41,9 +42,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         $user = Auth::user();
 
-        // Ambil laporan dan template milik user
+        // Ambil laporan dan template milik user dengan sections untuk progress calculation
         return Inertia::render('Dashboard', [
-            'laporans' => $user->laporans()->latest()->get(),
+            'laporans' => $user->laporans()->with('sections')->latest()->get(),
             'templates' => $user->templates()->get(),
         ]);
     })->name('dashboard');
@@ -64,18 +65,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/laporan/preview-live', [LaporanController::class, 'previewLive'])->name('laporan.preview.live');
     Route::get('/laporan/{laporan}/preview', [LaporanController::class, 'preview'])->name('laporan.preview');
 
-    // Rute untuk update section/bab
+    // Rute untuk CRUD section/bab
+    Route::post('/laporan/{laporan}/sections', [ReportSectionController::class, 'store'])->name('sections.store');
     Route::put('/sections/{section}', [ReportSectionController::class, 'update'])->name('sections.update');
+    Route::delete('/sections/{section}', [ReportSectionController::class, 'destroy'])->name('sections.destroy');
 
     // --- Rute Fitur Template ---
     Route::resource('templates', TemplateController::class)->only(['index', 'store', 'destroy']);
+    Route::post('/laporan/{laporan}/import-template', [TemplateController::class, 'import'])->name('templates.import');
+    Route::post('/templates/{template}/use', [TemplateController::class, 'useTemplate'])->name('templates.use');
+    Route::post('/templates/{template}/use/laporan/{laporan}', [TemplateController::class, 'useTemplate'])->name('templates.use.laporan');
+    Route::post('/templates/{template}/apply/{laporan}', [TemplateController::class, 'apply'])->name('templates.apply');
+
+    // --- Rute Upload Gambar ---
+    Route::post('/upload-image', [ImageUploadController::class, 'store'])->name('images.upload');
 
     // --- RUTE FITUR QUESTIFY / GAME ROOM ---
     // Halaman Lobby: menampilkan semua topik & game
     Route::get('/questify', [GameController::class, 'index'])->name('questify.index');
     // Halaman Game: menampilkan game berdasarkan slug
     Route::get('/questify/{game:slug}', [GameController::class, 'show'])->name('questify.show');
+
+    Route::get('/templates', function () {
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                ['id' => 1, 'name' => 'Basic Layout', 'code' => 'display: flex;'],
+                ['id' => 2, 'name' => 'Center Chibi', 'code' => 'justify-content: center;']
+            ]
+        ]);
+    })->name('questify.templates');
 });
 
 // --- Rute Autentikasi (login, register, dll) ---
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

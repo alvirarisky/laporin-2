@@ -123,10 +123,15 @@ const Create = ({ auth, report_type, report_types }) => {
                     {/* <div className="grid grid-cols-1 lg:grid-cols-4 gap-6"> */}
                     {/* Kolom Kiri: Form Laporan */}
                     {/* <div className="lg:col-span-3 bg-white overflow-hidden shadow-xl sm:rounded-lg p-6"> */}
-                    <div className="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
-                        <h3 className="text-2xl font-bold text-indigo-700 mb-6 border-b pb-2">
+                    <div className="bg-white overflow-hidden shadow-2xl sm:rounded-3xl p-8 border border-slate-200">
+                        <div className="mb-8">
+                            <h3 className="text-3xl font-bold text-slate-900 mb-2">
                             📝 Data Identitas Dokumen
                         </h3>
+                            <p className="text-sm text-slate-600">
+                                Isi informasi dasar untuk laporan akademik Anda
+                            </p>
+                        </div>
 
                         <form onSubmit={submit} className="space-y-6">
                             {/* --- TAMBAHKAN DROPDOWN JENIS LAPORAN --- */}
@@ -159,7 +164,14 @@ const Create = ({ auth, report_type, report_types }) => {
                             {/* Baris 1: Judul Laporan */}
                             <div>
                                 <InputLabel htmlFor="judul" value="Judul Laporan *" />
-                                <TextInput id="judul" name="judul" value={data.judul} className="mt-1 block w-full" onChange={handleInputChange} required />
+                                <TextInput 
+                                    id="judul" 
+                                    name="judul" 
+                                    value={data.judul} 
+                                    className="mt-1 block w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200" 
+                                    onChange={handleInputChange} 
+                                    required 
+                                />
                                 <InputError message={errors.judul} className="mt-2" />
                             </div>
 
@@ -254,18 +266,46 @@ const Create = ({ auth, report_type, report_types }) => {
                             </div>
 
                             {/* Tombol Aksi */}
-                            <div className="flex items-center justify-between pt-4 border-t mt-6">
+                            <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-8 gap-4">
                                 <button
                                     type="button"
                                     onClick={handlePreview}
-                                    className={`inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 ${previewLoading || processing ? 'opacity-25' : ''}`}
+                                    className={`inline-flex items-center gap-2 px-6 py-3 bg-slate-600 border border-transparent rounded-xl font-semibold text-sm text-white hover:bg-slate-700 active:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl ${previewLoading || processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     disabled={previewLoading || processing}
                                 >
-                                    {previewLoading ? 'Memuat...' : '👁️ Preview Cover'}
+                                    {previewLoading ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Memuat...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>👁️</span>
+                                            Preview Cover
+                                        </>
+                                    )}
                                 </button>
 
-                                <PrimaryButton disabled={processing || previewLoading}>
-                                    {processing ? 'Menyimpan...' : '💾 Simpan & Lanjutkan ke Editor'}
+                                <PrimaryButton 
+                                    disabled={processing || previewLoading}
+                                    className="px-6 py-3 rounded-xl font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200"
+                                >
+                                    {processing ? (
+                                        <>
+                                            <svg className="animate-spin h-4 w-4 inline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        <>
+                                            💾 Simpan & Lanjutkan ke Editor
+                                        </>
+                                    )}
                                 </PrimaryButton>
                             </div>
                         </form>

@@ -3,10 +3,16 @@ import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import axios from 'axios';
 
+// Path absolut statis untuk mencegah error 404
+const chibiDefault = '/images/chibi-default.png';
+const chibiHappy = '/images/chibi-happy.png';
+const chibiSad = '/images/chibi-default.png'; // Fallback jika chibi-sad.png tidak ada
+const iceCream = '/images/ice-cream.png';
+
 const chibiAssets = {
-    default: '/images/chibi-default.png',
-    happy: '/images/chibi-happy.png',
-    sad: '/images/chibi-sad.png',
+    default: chibiDefault,
+    happy: chibiHappy,
+    sad: chibiSad,
 };
 
 const statusThemes = {
@@ -58,12 +64,31 @@ const LevelStepper = ({ levels, currentLevelIndex, progressMap }) => (
 
 const ChibiCoach = ({ state, message }) => {
     const src = chibiAssets[state] ?? chibiAssets.default;
+    const isHappy = state === 'happy';
+    const isSad = state === 'sad';
+    
     return (
-        <div className="relative flex items-center gap-3 bg-white/90 border border-indigo-100 rounded-2xl px-4 py-3 shadow">
-            <img src={src} alt="Chibi" className="w-16 h-16 object-contain" />
-            <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-indigo-400 font-semibold">Chibi Coach</p>
-                <p className="text-sm text-slate-700">{message}</p>
+        <div className="relative bg-white/90 border border-indigo-100 rounded-2xl p-4 shadow-lg">
+            {/* Balon Bicara */}
+            <div className="mb-3 relative bg-indigo-50 rounded-xl p-3 border border-indigo-200">
+                <div className="absolute -bottom-2 left-6 w-4 h-4 bg-indigo-50 border-r border-b border-indigo-200 transform rotate-45"></div>
+                <p className="text-xs uppercase tracking-[0.3em] text-indigo-500 font-semibold mb-1">Chibi Coach</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{message}</p>
+            </div>
+            
+            {/* Chibi Image dengan animasi */}
+            <div className="flex justify-center">
+                <img 
+                    src={src} 
+                    alt="Chibi" 
+                    className={`w-20 h-20 object-contain transition-transform duration-300 ${
+                        isHappy ? 'animate-bounce' : isSad ? 'opacity-75' : ''
+                    }`}
+                    onError={(e) => {
+                        // Fallback jika gambar tidak ditemukan
+                        e.target.src = chibiDefault;
+                    }}
+                />
             </div>
         </div>
     );
@@ -72,106 +97,222 @@ const ChibiCoach = ({ state, message }) => {
 const ConfettiOverlay = ({ visible }) => {
     if (!visible) return null;
     return (
-        <div className="fixed inset-0 pointer-events-none flex items-center justify-center">
-            <div className="text-5xl animate-bounce">🎊</div>
+        <div className="fixed inset-0 pointer-events-none z-50 flex items-center justify-center">
+            <div className="relative">
+                {[...Array(20)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="absolute animate-confetti"
+                        style={{
+                            left: `${Math.random() * 100}%`,
+                            animationDelay: `${Math.random() * 0.5}s`,
+                            animationDuration: `${1 + Math.random()}s`,
+                        }}
+                    >
+                        {['🎉', '🎊', '✨', '⭐', '🌟'][Math.floor(Math.random() * 5)]}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
 
-const CssPlayground = ({ level, userAnswer, onChange, disabled, shake }) => {
-    const appliedStyle = useMemo(() => parseCssCode(userAnswer), [userAnswer]);
+// HACKER TERMINAL THEME - CSS/SQL (Split Screen Layout)
+const HackerTerminalWorkspace = ({ level, userAnswer, onChange, disabled, shake, gameType }) => {
+    const isCss = gameType === 'css';
+    const appliedStyle = useMemo(() => (isCss ? parseCssCode(userAnswer) : {}), [userAnswer, isCss]);
 
     return (
-        <div className="grid gap-4 lg:grid-cols-2">
-            <div className="bg-white rounded-3xl border border-indigo-100 shadow overflow-hidden">
-                <div className="px-6 py-4 border-b border-indigo-50 bg-indigo-50/60">
-                    <p className="text-xs uppercase tracking-[0.4em] text-indigo-500 font-semibold">Visual Playground</p>
-                    <h3 className="text-lg font-semibold text-slate-800">Preview Hasil</h3>
+        <div className={isCss ? 'grid gap-4 lg:grid-cols-2' : 'space-y-4'}>
+            {/* Kiri: Visual Output/Preview */}
+            {isCss && (
+                <div className="bg-white rounded-3xl border border-indigo-100 shadow-lg overflow-hidden">
+                    <div className="px-6 py-4 border-b border-indigo-50 bg-indigo-50/60">
+                        <p className="text-xs uppercase tracking-[0.4em] text-indigo-500 font-semibold">Visual Playground</p>
+                        <h3 className="text-lg font-semibold text-slate-800">Preview Hasil</h3>
+                    </div>
+                    <div className="p-6 h-80 bg-blue-100">
+                        {level?.setup_html ? (
+                            <div 
+                                className="h-full w-full"
+                                style={appliedStyle}
+                                dangerouslySetInnerHTML={{ __html: level.setup_html }} 
+                            />
+                        ) : (
+                            <div className="h-full w-full" style={appliedStyle}>
+                                <img 
+                                    src="/images/chibi-default.png" 
+                                    alt="Chibi" 
+                                    style={{ width: '72px', height: '72px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                    }}
+                                />
+                                <img 
+                                    src="/images/ice-cream.png" 
+                                    alt="Target" 
+                                    style={{ width: '64px', height: '64px', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="p-6 min-h-[260px] bg-gradient-to-b from-white to-indigo-50" style={appliedStyle}>
-                    {level?.setup_html ? (
-                        <div dangerouslySetInnerHTML={{ __html: level.setup_html }} className="prose max-w-none" />
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-slate-500">
-                            Tambahkan CSS untuk melihat perubahan.
-                        </div>
-                    )}
-                </div>
-            </div>
+            )}
 
-            <div className="bg-slate-900 rounded-3xl shadow-lg border border-slate-800">
-                <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-                    <p className="text-xs uppercase tracking-[0.4em] text-indigo-300 font-semibold">Kode Editor</p>
-                    <span className="text-[10px] text-slate-400">Visual Studio Mode</span>
+            {!isCss && level?.setup_html && (
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-lg overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+                        <p className="text-xs uppercase tracking-[0.4em] text-slate-500 font-semibold">Database Detective</p>
+                        <h3 className="text-lg font-semibold text-slate-800">Data Sampel</h3>
+                    </div>
+                    <div className="p-6 overflow-auto max-h-[300px]">
+                        <div dangerouslySetInnerHTML={{ __html: level.setup_html }} className="min-w-full" />
+                    </div>
+                </div>
+            )}
+
+            {/* Kanan: Code Editor (Terminal Style) */}
+            <div className="bg-slate-900 rounded-3xl shadow-lg border-2 border-emerald-500/30 overflow-hidden">
+                <div className="px-6 py-4 border-b border-emerald-500/20 flex items-center justify-between bg-slate-800">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        <p className="ml-3 text-xs uppercase tracking-[0.4em] text-emerald-400 font-mono font-semibold">
+                            {isCss ? 'CSS Terminal' : 'SQL Terminal'}
+                        </p>
+                    </div>
+                    <span className="text-[10px] text-emerald-500/60 font-mono">root@hacker:~$</span>
                 </div>
                 <textarea
                     id="answer-input"
-                    className={`w-full h-64 bg-transparent text-white font-mono text-sm p-6 focus:outline-none focus:ring-0 ${shake ? 'animate-shake' : ''}`}
+                    className={`w-full h-64 bg-slate-900 text-green-400 font-mono text-sm p-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none border-0 ${shake ? 'animate-shake' : ''}`}
+                    style={{ 
+                        color: '#4ade80',
+                        caretColor: '#4ade80',
+                        backgroundColor: '#0f172a',
+                    }}
                     value={userAnswer}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={disabled}
-                    placeholder="display:flex; justify-content:center;"
+                    placeholder={isCss ? 'display:flex; justify-content:center;' : 'SELECT * FROM users;'}
+                    spellCheck={false}
                 />
             </div>
         </div>
     );
 };
 
-const SqlWorkspace = ({ level, userAnswer, onChange, disabled, shake }) => (
-    <div className="space-y-4">
-        <div className="bg-white rounded-3xl border border-slate-100 shadow overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
-                <p className="text-xs uppercase tracking-[0.4em] text-slate-500 font-semibold">Database Detective</p>
-                <h3 className="text-lg font-semibold text-slate-800">Data Sampel</h3>
+// ACADEMIC NOTEBOOK THEME - Math/Logic (Papan Tulis Style)
+const AcademicNotebookWorkspace = ({ level, userAnswer, onChange, disabled, shake }) => (
+    <div className="grid gap-4 lg:grid-cols-2">
+        {/* Kiri: Soal di Papan Tulis */}
+    <div className="bg-[#1a472a] rounded-3xl shadow-2xl border-4 border-[#2d5a3d] overflow-hidden relative">
+        <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)',
+        }}></div>
+        <div className="relative px-6 py-4 border-b-2 border-[#2d5a3d] bg-[#1a472a]/80">
+            <div className="flex items-center justify-between">
+                <div>
+                        <p className="text-xs uppercase tracking-[0.4em] text-white/70 font-semibold">Papan Tulis</p>
+                        <h3 className="text-lg font-semibold text-white">Soal</h3>
+                </div>
+                <span className="text-xs text-white/60 font-semibold bg-white/10 px-3 py-1 rounded-full">
+                    Level {level?.level ?? 1}
+                </span>
             </div>
-            <div className="p-6 overflow-auto">
-                {level?.setup_html ? (
-                    <div dangerouslySetInnerHTML={{ __html: level.setup_html }} className="min-w-full" />
-                ) : (
-                    <div className="text-sm text-slate-500">Dataset tidak tersedia untuk level ini.</div>
-                )}
+        </div>
+            <div className="p-8">
+                <div className="bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-sm min-h-[200px]">
+                <p className="text-white text-lg leading-relaxed font-medium" style={{ textShadow: '0 0 10px rgba(255,255,255,0.1)' }}>
+                    {level?.instruction}
+                </p>
+            </div>
             </div>
         </div>
 
-        <div className="bg-slate-900 rounded-3xl shadow-lg border border-slate-800">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-                <p className="text-xs uppercase tracking-[0.4em] text-emerald-300 font-semibold">SQL Terminal</p>
-                <span className="text-[10px] text-slate-400">psql @localhost</span>
+        {/* Kanan: Area Jawaban (Kertas) */}
+        <div className="bg-stone-100 rounded-3xl shadow-xl border-2 border-stone-300 overflow-hidden">
+            <div className="px-6 py-4 border-b-2 border-stone-300 bg-white">
+                <p className="text-xs uppercase tracking-[0.4em] text-stone-600 font-semibold">Jawaban</p>
+                <h3 className="text-lg font-semibold text-stone-900">Tulis Jawabanmu</h3>
             </div>
-            <textarea
-                id="answer-input"
-                className={`w-full h-56 bg-transparent text-white font-mono text-sm p-6 focus:outline-none focus:ring-0 ${shake ? 'animate-shake' : ''}`}
-                value={userAnswer}
-                onChange={(e) => onChange(e.target.value)}
-                disabled={disabled}
-                placeholder="SELECT * FROM mahasiswa;"
-            />
-        </div>
-    </div>
-);
-
-const BlackboardWorkspace = ({ level, userAnswer, onChange, disabled, shake }) => (
-    <div className="bg-white rounded-3xl border border-amber-100 shadow-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-amber-100 bg-amber-50 flex items-center justify-between">
-            <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-amber-500 font-semibold">Chibi's Blackboard</p>
-                <h3 className="text-lg font-semibold text-slate-800">Kerjakan soal di papan</h3>
-            </div>
-            <span className="text-xs text-amber-500 font-semibold">{level?.level ?? 1}</span>
-        </div>
-        <div className="p-6 space-y-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-amber-50/60">
-            <div className="bg-white/90 rounded-2xl p-4 border border-amber-100 shadow-inner">
-                <p className="text-slate-700 text-base leading-relaxed">{level?.instruction}</p>
-            </div>
+            <div className="p-8">
             <input
                 id="answer-input"
                 type="text"
-                className={`w-full p-4 rounded-2xl text-lg font-semibold tracking-wide border-2 border-slate-200 bg-white text-gray-900 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 ${shake ? 'animate-shake' : ''}`}
+                    className={`w-full p-5 rounded-xl text-xl font-bold tracking-wide border-b-4 border-stone-400 bg-white text-gray-900 placeholder-stone-400 focus:outline-none focus:border-stone-600 focus:ring-4 focus:ring-stone-200 ${shake ? 'animate-shake' : ''}`}
+                style={{ 
+                        color: '#111827',
+                        backgroundColor: '#ffffff',
+                }}
                 value={userAnswer}
                 onChange={(e) => onChange(e.target.value)}
                 disabled={disabled}
                 placeholder="Tulis jawaban di sini..."
             />
+            </div>
+        </div>
+    </div>
+);
+
+// PAPER EXAM THEME - Quiz (Academic Notebook Style)
+const PaperExamWorkspace = ({ level, userAnswer, onChange, disabled, shake }) => (
+    <div className="grid gap-4 lg:grid-cols-2">
+        {/* Kiri: Soal di Kertas */}
+    <div className="bg-white rounded-3xl shadow-xl border-2 border-slate-200 overflow-hidden">
+        <div className="px-8 py-6 border-b-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+            <div className="flex items-center justify-between">
+                <div>
+                        <p className="text-xs uppercase tracking-[0.4em] text-slate-500 font-semibold">Kertas Ujian</p>
+                    <h3 className="text-xl font-bold text-slate-900 mt-1" style={{ fontFamily: 'Georgia, serif' }}>
+                            Soal
+                    </h3>
+                </div>
+                <span className="text-sm text-slate-600 font-semibold bg-slate-100 px-4 py-2 rounded-lg">
+                    Soal #{level?.level ?? 1}
+                </span>
+            </div>
+        </div>
+            <div className="p-8 bg-white min-h-[200px]">
+            <div className="bg-slate-50 rounded-xl p-6 border-l-4 border-slate-400">
+                <p className="text-slate-900 text-lg leading-relaxed" style={{ fontFamily: 'Georgia, serif' }}>
+                    {level?.instruction}
+                </p>
+            </div>
+            </div>
+        </div>
+
+        {/* Kanan: Area Jawaban */}
+        <div className="bg-white rounded-3xl shadow-xl border-2 border-slate-200 overflow-hidden">
+            <div className="px-8 py-6 border-b-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+                <p className="text-xs uppercase tracking-[0.4em] text-slate-500 font-semibold">Jawaban</p>
+                <h3 className="text-xl font-bold text-slate-900 mt-1" style={{ fontFamily: 'Georgia, serif' }}>
+                    Tulis Jawabanmu
+                </h3>
+            </div>
+            <div className="p-8 bg-white">
+                <label className="block text-sm font-semibold text-slate-700 mb-3 uppercase tracking-wide">
+                    Jawaban Anda:
+                </label>
+                <input
+                    id="answer-input"
+                    type="text"
+                    className={`w-full p-5 rounded-xl text-lg font-semibold tracking-wide border-2 border-slate-300 bg-white text-gray-900 placeholder-slate-400 focus:ring-4 focus:ring-slate-200 focus:border-slate-500 ${shake ? 'animate-shake' : ''}`}
+                    style={{ 
+                        fontFamily: 'Georgia, serif',
+                        color: '#111827',
+                        backgroundColor: '#ffffff',
+                    }}
+                    value={userAnswer}
+                    onChange={(e) => onChange(e.target.value)}
+                    disabled={disabled}
+                    placeholder="Ketik jawaban di sini..."
+                />
+            </div>
         </div>
     </div>
 );
@@ -259,7 +400,7 @@ export default function Game({ auth, game, startLevelIndex = 0, progress = {} })
                 setStatusMessage(data.message || 'Jawaban tepat! 🎉');
                 setChibiState('happy');
                 setShowConfetti(true);
-                setTimeout(() => setShowConfetti(false), 1800);
+                setTimeout(() => setShowConfetti(false), 2500);
                 await persistProgress('completed');
 
                 setTimeout(() => {
@@ -280,8 +421,28 @@ export default function Game({ auth, game, startLevelIndex = 0, progress = {} })
                 await persistProgress('failed');
             }
         } catch (error) {
+            // Error handling yang lebih baik
+            console.error('Error checking answer:', error);
+            
+            if (error.response) {
+                // Server responded with error status
+                const status = error.response.status;
+                if (status === 500) {
+                    setStatusMessage('Gagal terhubung ke server, coba lagi nanti.');
+                } else if (status === 422) {
+                    setStatusMessage(error.response.data?.message || 'Jawaban tidak valid, coba lagi.');
+                } else {
+                    setStatusMessage(error.response.data?.message || 'Terjadi kesalahan, coba lagi.');
+                }
+            } else if (error.request) {
+                // Request was made but no response received
+                setStatusMessage('Gagal terhubung ke server. Periksa koneksi internet Anda.');
+            } else {
+                // Something else happened
+                setStatusMessage('Terjadi kesalahan tidak terduga. Coba lagi.');
+            }
+            
             setStatusTone('error');
-            setStatusMessage(error?.response?.data?.message ?? 'Terjadi kesalahan pada server. Coba lagi.');
             setChibiState('sad');
             triggerShake();
         } finally {
@@ -303,9 +464,21 @@ export default function Game({ auth, game, startLevelIndex = 0, progress = {} })
     };
 
     const renderWorkspace = () => {
-        if (theme === 'css') {
+        if (theme === 'css' || theme === 'sql') {
             return (
-                <CssPlayground
+                <HackerTerminalWorkspace
+                    level={currentLevel}
+                    userAnswer={userAnswer}
+                    onChange={setUserAnswer}
+                    disabled={isChecking || journeyComplete}
+                    shake={shouldShake}
+                    gameType={theme}
+                />
+            );
+        }
+        if (theme === 'math' || theme === 'logic') {
+            return (
+                <AcademicNotebookWorkspace
                     level={currentLevel}
                     userAnswer={userAnswer}
                     onChange={setUserAnswer}
@@ -314,19 +487,9 @@ export default function Game({ auth, game, startLevelIndex = 0, progress = {} })
                 />
             );
         }
-        if (theme === 'sql') {
-            return (
-                <SqlWorkspace
-                    level={currentLevel}
-                    userAnswer={userAnswer}
-                    onChange={setUserAnswer}
-                    disabled={isChecking || journeyComplete}
-                    shake={shouldShake}
-                />
-            );
-        }
+        // Quiz type
         return (
-            <BlackboardWorkspace
+            <PaperExamWorkspace
                 level={currentLevel}
                 userAnswer={userAnswer}
                 onChange={setUserAnswer}
@@ -455,6 +618,28 @@ export default function Game({ auth, game, startLevelIndex = 0, progress = {} })
                     40%, 80% { transform: translateX(6px); }
                 }
                 .animate-shake { animation: shake 0.4s ease-in-out; }
+                
+                @keyframes confetti {
+                    0% {
+                        transform: translateY(0) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(-100px) rotate(360deg);
+                        opacity: 0;
+                    }
+                }
+                .animate-confetti {
+                    animation: confetti 1s ease-out forwards;
+                }
+                
+                @keyframes bounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-10px); }
+                }
+                .animate-bounce {
+                    animation: bounce 0.6s ease-in-out infinite;
+                }
             `}</style>
         </AuthenticatedLayout>
     );

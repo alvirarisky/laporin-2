@@ -11,11 +11,33 @@ class Laporan extends Model
 {
     use HasFactory;
 
-    protected $fillable = [/* ... field laporan lainnya ... */ 'mata_kuliah', 'topic_id']; // Tambah topic_id jika ada
+    protected $fillable = [
+        'user_id',
+        'report_type',
+        'judul',
+        'nama',
+        'nim',
+        'prodi',
+        'mata_kuliah',
+        'dosen_pembimbing',
+        'instansi',
+        'kota',
+        'tahun_ajaran',
+        'logo_path',
+        'logo_position',
+    ];
 
     public function sections(): HasMany
     {
-        return $this->hasMany(ReportSection::class);
+        return $this->hasMany(ReportSection::class)->orderBy('order');
+    }
+
+    /**
+     * Ambil hanya root sections (bab utama, bukan sub-bab)
+     */
+    public function rootSections(): HasMany
+    {
+        return $this->hasMany(ReportSection::class)->whereNull('parent_id')->orderBy('order');
     }
 
     public function user(): BelongsTo
