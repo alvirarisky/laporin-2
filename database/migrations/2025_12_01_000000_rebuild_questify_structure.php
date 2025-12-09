@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Bersihin tabel lama
         Schema::dropIfExists('game_progresses');
         Schema::dropIfExists('game_levels');
         Schema::dropIfExists('games');
@@ -45,10 +46,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('game_id')->constrained('games')->cascadeOnDelete();
             $table->unsignedInteger('level');
-            $table->text('instruction');
+            
+            // KOLOM PENTING YANG DIPERBAIKI
+            $table->string('question')->nullable(); // Judul Soal
+            $table->text('instruction'); // Cerita / Misi
+            $table->text('hint')->nullable(); // Hint Edukatif
+            $table->text('correct_answer'); // Kunci Jawaban (JANGAN solution)
+            
             $table->longText('setup_html')->nullable();
             $table->text('initial_code')->nullable();
-            $table->text('solution');
             $table->text('target_answer')->nullable();
             $table->text('target_css')->nullable();
             $table->unsignedInteger('exp_reward')->default(20);
@@ -76,4 +82,3 @@ return new class extends Migration
         Schema::dropIfExists('majors');
     }
 };
-

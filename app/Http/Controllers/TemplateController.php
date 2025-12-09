@@ -14,14 +14,9 @@ use PhpOffice\PhpWord\IOFactory;
 
 class TemplateController extends Controller
 {
-    /**
-     * Tampilkan halaman manajemen template.
-     */
     public function index()
     {
         $user = Auth::user();
-
-        // Ambil template sendiri ATAU template public
         $templates = Template::with('user:id,name')
             ->where('user_id', $user->id)
             ->orWhere('is_public', true)
@@ -38,9 +33,6 @@ class TemplateController extends Controller
         ]);
     }
 
-    /**
-     * Upload template baru.
-     */
     public function store(Request $request)
     {
         $request->validate([
@@ -57,7 +49,7 @@ class TemplateController extends Controller
             Auth::user()->templates()->create([
                 'name' => $request->name,
                 'filepath' => $path,
-                'is_public' => $request->boolean('is_public'), // Pastikan kolom ini ada di DB
+                'is_public' => $request->boolean('is_public'),
                 'description' => $request->description,
             ]);
 
@@ -67,92 +59,82 @@ class TemplateController extends Controller
         }
     }
 
-    /**
-     * Hapus template.
-     */
     public function destroy(Template $template)
     {
         if ($template->user_id !== Auth::id()) abort(403);
-
         if (Storage::disk('public')->exists($template->filepath)) {
             Storage::disk('public')->delete($template->filepath);
         }
-
         $template->delete();
         return back()->with('success', 'Template berhasil dihapus.');
     }
 
     /**
-     * [PENTING] Gunakan template -> Redirect ke Editor
+     * [MODIFIED] Gunakan template (DEBUG MODE)
+     * Try-catch dihapus sementara biar kelihatan error aslinya.
      */
-    public function useTemplate(Template $template)
+    public function useTemplate(Request $request, Template $template)
     {
-        try {
-            // 1. Buat Laporan Baru
-            $laporan = Laporan::create([
-                'user_id' => Auth::id(),
-                'judul' => 'Laporan: ' . $template->name,
-                'mata_kuliah' => 'Umum',
-            ]);
+        // 1. Validasi Input (Tambahin report_type)
+        $validated = $request->validate([
+            'judul' => 'nullable|string|max:255',
+            'report_type' => 'nullable|string|max:100', // <--- Tambah validasi ini
+            'mata_kuliah' => 'nullable|string|max:255',
+            'nim' => 'nullable|string|max:50',
+            'prodi' => 'nullable|string|max:100',
+            'instansi' => 'nullable|string|max:100',
+        ]);
 
-            // 2. Parsing file template
-            $filePath = Storage::disk('public')->path($template->filepath);
-            $this->parseAndSaveSections($filePath, $laporan);
+        // Default value
+        $judul = $validated['judul'] ?: 'Laporan: ' . $template->name;
+        $matkul = $validated['mata_kuliah'] ?: 'Umum';
+        $tipe = $validated['report_type'] ?? 'Makalah'; // <--- Default jadi Makalah kalau kosong
 
-            // 3. Redirect ke Editor
-            return redirect()->route('laporan.edit', $laporan->id)
-                ->with('success', 'Laporan berhasil dibuat! Silakan mulai mengedit. 🚀');
-
-        } catch (\Exception $e) {
-            Log::error("Template Use Error: " . $e->getMessage());
-            return back()->with('error', 'Gagal memproses template: ' . $e->getMessage());
-        }
+        // 2. Buat Laporan Baru
+        $laporan = Laporan::create([
+            'user_id' => Auth::id(),
+            'nama' => Auth::user()->name,
+            'judul' => $judul,
+            'report_type' => $tipe, // <--- Simpan Tipe Laporan di sini
+            'mata_kuliah' => $matkul,
+            
+            // Isi field opsional
+            'nim' => $validated['nim'] ?? null,
+            'prodi' => $validated['prodi'] ?? null,
+            'instansi' => $validated['instansi'] ?? null,
+            
+            // Default field lain
+            'kota' => 'Jakarta', 
+            'tahun_ajaran' => date('Y'),
+        ]);
     }
 
-    /**
-     * Apply ke laporan lama
-     */
     public function apply(Request $request, Template $template, Laporan $laporan)
     {
         if ($laporan->user_id !== Auth::id()) abort(403);
 
-        try {
-            if ($request->boolean('replace_existing')) {
-                $laporan->sections()->delete();
-            }
-
-            $filePath = Storage::disk('public')->path($template->filepath);
-            $this->parseAndSaveSections($filePath, $laporan);
-
-            return redirect()->route('laporan.edit', $laporan->id)
-                ->with('success', 'Template berhasil diterapkan!');
-
-        } catch (\Exception $e) {
-            return back()->with('error', 'Gagal menerapkan template: ' . $e->getMessage());
+        if ($request->boolean('replace_existing')) {
+            $laporan->sections()->delete();
         }
+
+        $filePath = Storage::disk('public')->path($template->filepath);
+        $this->parseAndSaveSections($filePath, $laporan);
+
+        return redirect()->route('laporan.edit', $laporan->id)
+            ->with('success', 'Template berhasil diterapkan!');
     }
 
-    /**
-     * Import manual (Drag & Drop)
-     */
     public function import(Request $request, Laporan $laporan)
     {
         $request->validate(['template_file' => 'required|mimes:docx|max:10240']);
-
-        try {
-            $path = $request->file('template_file')->getPathname();
-            $this->parseAndSaveSections($path, $laporan);
-            return back()->with('success', 'Import Sukses!');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Gagal import: ' . $e->getMessage());
-        }
+        $path = $request->file('template_file')->getPathname();
+        $this->parseAndSaveSections($path, $laporan);
+        return back()->with('success', 'Import Sukses!');
     }
 
     // --- PARSER LOGIC ---
     private function parseAndSaveSections($filePath, Laporan $laporan)
     {
-        if (!file_exists($filePath)) throw new \Exception("File template tidak ditemukan.");
-
         $phpWord = IOFactory::load($filePath);
         $xmlWriter = IOFactory::createWriter($phpWord, 'HTML');
         
@@ -161,6 +143,7 @@ class TemplateController extends Controller
         $rawHtml = ob_get_contents();
         ob_end_clean();
 
+        // Bersihin HTML dari style bawaan Word yang kacau
         $cleanHtml = preg_replace('/<head\b[^>]*>(.*?)<\/head>/is', "", $rawHtml);
         $cleanHtml = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', "", $cleanHtml);
         $cleanHtml = strip_tags($cleanHtml, '<p><h1><h2><h3><h4><h5><h6><table><thead><tbody><tr><td><ul><ol><li><strong><em><b><i><u><br><img>');
@@ -172,7 +155,7 @@ class TemplateController extends Controller
         libxml_clear_errors();
 
         $body = $dom->getElementsByTagName('body')->item(0);
-        if (!$body) throw new \Exception('Dokumen kosong.');
+        if (!$body) return; // Kalau kosong ya udah return aja
 
         $currentRoot = null;
         $activeSection = null;
@@ -187,6 +170,7 @@ class TemplateController extends Controller
 
             if (empty($text) && !in_array($tag, ['img', 'table', 'tr', 'td'])) continue;
 
+            // Deteksi Judul Bab (H1 atau text bold > uppercase)
             $isBold = false;
             if ($node->hasChildNodes()) {
                 foreach ($node->childNodes as $child) {

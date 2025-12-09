@@ -11,18 +11,36 @@ const Icons = {
     Eye: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>,
     Download: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
     Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
+    Clock: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
 };
 
 export default function Index({ auth, laporans, flash }) {
     const [searchTerm, setSearchTerm] = useState("");
 
+    // --- HANDLE DELETE ---
     const handleDelete = (id) => {
-        if (confirm("Yakin hapus laporan ini? Data yang dihapus tidak bisa dikembalikan.")) {
-            router.delete(route("laporan.destroy", id));
+        if (confirm("⚠️ Yakin mau hapus laporan ini?\n\nData yang dihapus tidak bisa dikembalikan!")) {
+            router.delete(route("laporan.destroy", id), {
+                onSuccess: () => {
+                    // Opsional: Bisa tambah notif toast disini kalau mau
+                }
+            });
         }
     };
 
-    // Filter Logic (Client Side)
+    // --- FORMAT TANGGAL & JAM ---
+    const formatLastUpdate = (dateString) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(date).replace('.', ':'); // Biar format jamnya 14:30 bukan 14.30
+    };
+
+    // Filter Logic
     const filteredLaporan = laporans.filter((laporan) =>
         laporan.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
         laporan.mata_kuliah.toLowerCase().includes(searchTerm.toLowerCase())
@@ -34,23 +52,23 @@ export default function Index({ auth, laporans, flash }) {
             header={
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h2 className="font-bold text-2xl text-slate-800 leading-tight">
-                            Arsip Laporan 🗂️
+                        <h2 className="font-bold text-2xl text-white leading-tight flex items-center gap-2">
+                            <span>🗂️</span> Arsip Laporan
                         </h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Kelola semua dokumen laporan yang pernah kamu buat.
+                        <p className="text-sm text-zinc-400 mt-1">
+                            Kelola dan pantau progress semua dokumen laporanmu.
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
                         <Link
-                            href={route("dashboard")} // Balik ke dashboard dulu
-                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition shadow-sm"
+                            href={route("dashboard")}
+                            className="px-4 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl hover:bg-zinc-700 hover:text-white transition shadow-sm"
                         >
                             Dashboard
                         </Link>
                         <Link
-                            href={route("laporan.create")} // Langsung ke create
-                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 flex items-center gap-2"
+                            href={route("laporan.create")}
+                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-500 transition shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_25px_rgba(79,70,229,0.5)] border border-indigo-500/30 flex items-center gap-2"
                         >
                             <Icons.Plus /> Buat Baru
                         </Link>
@@ -61,11 +79,11 @@ export default function Index({ auth, laporans, flash }) {
             <Head title="Daftar Laporan" />
 
             <div className="py-8">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
                     
                     {/* Flash Message */}
                     {flash.success && (
-                        <div className="p-4 bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl flex items-center gap-2 shadow-sm animate-fade-in-down">
+                        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex items-center gap-2 shadow-lg animate-fade-in-down">
                             <span className="text-xl">✅</span>
                             {flash.success}
                         </div>
@@ -73,7 +91,7 @@ export default function Index({ auth, laporans, flash }) {
 
                     {/* Search Bar */}
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
                             <Icons.Search />
                         </div>
                         <input
@@ -81,7 +99,7 @@ export default function Index({ auth, laporans, flash }) {
                             placeholder="Cari judul laporan atau mata kuliah..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all shadow-sm"
+                            className="w-full pl-10 pr-4 py-3 bg-[#18181b]/50 backdrop-blur-sm rounded-xl border border-zinc-700 text-white placeholder-zinc-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-sm"
                         />
                     </div>
 
@@ -91,57 +109,67 @@ export default function Index({ auth, laporans, flash }) {
                             {filteredLaporan.map((laporan) => (
                                 <div
                                     key={laporan.id}
-                                    className="group bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden"
+                                    className="group bg-[#18181b] rounded-2xl border border-zinc-800 hover:border-indigo-500/50 shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden relative"
                                 >
-                                    <div className="p-6">
+                                    {/* Gradient Glow Effect */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-transparent to-purple-500/0 group-hover:from-indigo-500/5 group-hover:to-purple-500/5 transition-all duration-500"></div>
+
+                                    <div className="p-6 relative z-10">
                                         <div className="flex items-start justify-between mb-4">
-                                            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                                            <div className="p-3 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-xl group-hover:scale-110 transition-transform duration-300">
                                                 <Icons.Doc />
                                             </div>
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-md">
-                                                {new Date(laporan.created_at).toLocaleDateString("id-ID", {
-                                                    day: "numeric", month: "short", year: "numeric"
-                                                })}
-                                            </span>
+                                            {/* BADGE UPDATED AT (TANGGAL + JAM) */}
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
+                                                    <Icons.Clock /> Update Terakhir
+                                                </span>
+                                                <span className="text-xs font-mono text-zinc-300 bg-zinc-800/50 border border-zinc-700/50 px-2 py-1 rounded-md mt-1">
+                                                    {formatLastUpdate(laporan.updated_at)}
+                                                </span>
+                                            </div>
                                         </div>
                                         
-                                        <h3 className="text-lg font-bold text-slate-800 mb-1 line-clamp-2 leading-tight group-hover:text-indigo-700 transition-colors">
+                                        <h3 className="text-lg font-bold text-white mb-1 line-clamp-2 leading-tight group-hover:text-indigo-400 transition-colors">
                                             {laporan.judul}
                                         </h3>
-                                        <p className="text-sm text-slate-500 line-clamp-1">
+                                        <p className="text-sm text-zinc-500 line-clamp-1 font-mono">
                                             {laporan.mata_kuliah}
                                         </p>
                                     </div>
 
                                     {/* Action Bar */}
-                                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                                    <div className="px-6 py-4 bg-zinc-900/50 border-t border-zinc-800 flex items-center justify-between relative z-10">
                                         <div className="flex items-center gap-1">
                                             <Link
                                                 href={route("laporan.edit", laporan.id)}
-                                                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all tooltip"
+                                                className="p-2 text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all tooltip"
                                                 title="Edit Laporan"
                                             >
                                                 <Icons.Edit />
                                             </Link>
                                             <a
-                                                href={route("laporan.preview", laporan.id)} // Ganti route ke show/preview
-                                                className="p-2 text-slate-500 hover:text-sky-600 hover:bg-white rounded-lg transition-all"
+                                                href={route("laporan.preview", laporan.id)}
+                                                target="_blank"
+                                                className="p-2 text-zinc-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all"
                                                 title="Lihat Preview"
                                             >
                                                 <Icons.Eye />
                                             </a>
                                             <a
-                                                href={route("laporan.download", laporan.id)}
-                                                className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-white rounded-lg transition-all"
-                                                title="Download File"
+                                                href={route("laporan.download.pdf", laporan.id)}
+                                                className="p-2 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
+                                                title="Download PDF"
                                             >
                                                 <Icons.Download />
                                             </a>
                                         </div>
+                                        
+                                        {/* TOMBOL DELETE MERAH */}
                                         <button
                                             onClick={() => handleDelete(laporan.id)}
-                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Hapus"
+                                            className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20"
+                                            title="Hapus Laporan"
                                         >
                                             <Icons.Trash />
                                         </button>
@@ -150,14 +178,14 @@ export default function Index({ auth, laporans, flash }) {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
+                        <div className="text-center py-20 bg-[#18181b]/50 rounded-3xl border border-dashed border-zinc-700">
+                            <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl grayscale opacity-50">
                                 📭
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-800">
+                            <h3 className="text-lg font-bold text-white">
                                 {searchTerm ? "Tidak ditemukan" : "Belum ada laporan"}
                             </h3>
-                            <p className="text-slate-500 max-w-sm mx-auto mt-2 mb-6">
+                            <p className="text-zinc-500 max-w-sm mx-auto mt-2 mb-6">
                                 {searchTerm 
                                     ? `Tidak ada laporan yang cocok dengan kata kunci "${searchTerm}".` 
                                     : "Mulai buat laporan pertamamu dan arsip akan muncul di sini."}
@@ -165,7 +193,7 @@ export default function Index({ auth, laporans, flash }) {
                             {!searchTerm && (
                                 <Link
                                     href={route("laporan.create")}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-indigo-500/30"
                                 >
                                     <Icons.Plus /> Buat Laporan Sekarang
                                 </Link>

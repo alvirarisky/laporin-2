@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, router } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 import axios from "axios";
 
 // Tiptap Imports
@@ -35,15 +35,16 @@ const Icons = {
     Trash: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
     Plus: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
     Edit: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
-    Drag: () => <svg className="w-4 h-4 text-slate-300 cursor-grab active:cursor-grabbing hover:text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>,
-    FolderOpen: () => <svg className="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
-    FolderClosed: () => <svg className="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
+    Drag: () => <svg className="w-4 h-4 text-zinc-600 cursor-grab active:cursor-grabbing hover:text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>,
+    FolderOpen: () => <svg className="w-3 h-3 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
+    FolderClosed: () => <svg className="w-3 h-3 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
     Check: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
     Close: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
-    Sub: () => <svg className="w-3 h-3 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"></circle></svg>,
+    Sub: () => <svg className="w-3 h-3 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"></circle></svg>,
     Import: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
     ArrowRight: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
-    ArrowLeft: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    ArrowLeft: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>,
+    EditCover: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
 };
 
 // --- HELPER: BUILD TREE ---
@@ -65,7 +66,7 @@ const buildSectionTree = (flatSections) => {
     return roots;
 };
 
-// --- HELPER: FLATTEN TREE FOR NAVIGATION ---
+// --- HELPER: FLATTEN TREE ---
 const flattenSections = (nodes) => {
     let flat = [];
     nodes.forEach(node => {
@@ -77,9 +78,8 @@ const flattenSections = (nodes) => {
     return flat;
 };
 
-// --- TOOLBAR (REACTIVE) ---
+// --- MENU BAR (Dalam Kertas) ---
 const MenuBar = ({ editor, onImageUpload }) => {
-    // FORCE UPDATE STATE BIAR REDO NYALA
     const [updater, setUpdater] = useState(0);
     useEffect(() => {
         if (!editor) return;
@@ -160,7 +160,7 @@ const MenuBar = ({ editor, onImageUpload }) => {
     );
 };
 
-// --- SIDEBAR ITEM ---
+// --- SIDEBAR ITEM (Dark Mode) ---
 const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection, onDelete }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
     const [isOpen, setIsOpen] = useState(true);
@@ -178,24 +178,127 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
 
     return (
         <li ref={setNodeRef} style={style} className="mb-1 select-none">
-            <div className={`group flex items-center gap-1 rounded-md transition-all py-1.5 px-1.5 ${isActive ? "bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100" : "hover:bg-slate-50 text-slate-700 border border-transparent"}`}>
-                <div {...attributes} {...listeners} className="p-1 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-slate-500"><Icons.Drag /></div>
-                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="p-1 rounded hover:bg-slate-200 text-slate-400">
+            <div className={`group flex items-center gap-1 rounded-md transition-all py-1.5 px-1.5 ${isActive ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" : "hover:bg-zinc-800 text-zinc-300 border border-transparent"}`}>
+                <div {...attributes} {...listeners} className="p-1 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-zinc-400"><Icons.Drag /></div>
+                <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="p-1 rounded hover:bg-zinc-800 text-zinc-500">
                     {section.children?.length > 0 ? (isOpen ? <Icons.FolderOpen/> : <Icons.FolderClosed/>) : <div className="w-3"/>}
                 </button>
                 <button onClick={() => onSelect(section)} className="flex-1 text-left truncate text-sm font-semibold py-0.5">
-                    {isEditing ? ( <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleSaveTitle} onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()} className="w-full px-1 py-0 bg-white border border-indigo-300 rounded focus:ring-0 text-sm" autoFocus onClick={(e) => e.stopPropagation()} /> ) : section.title}
+                    {isEditing ? ( <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleSaveTitle} onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()} className="w-full px-1 py-0 bg-zinc-900 border border-indigo-500 rounded focus:ring-0 text-sm text-white" autoFocus onClick={(e) => e.stopPropagation()} /> ) : section.title}
                 </button>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-0.5">
-                    <button onClick={(e) => { e.stopPropagation(); setIsAddingChild(true); setIsOpen(true); }} className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" title="Tambah Sub-bab"><Icons.Plus/></button>
+                    <button onClick={(e) => { e.stopPropagation(); setIsAddingChild(true); setIsOpen(true); }} className="p-1 rounded text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10" title="Tambah Sub-bab"><Icons.Plus/></button>
                     <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200"><Icons.Menu/></button>
-                        {showMenu && (<><div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)}/><div className="absolute right-0 top-6 w-32 bg-white rounded-lg shadow-xl border border-slate-100 z-30 py-1 flex flex-col"><button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex gap-2 items-center text-slate-600"><Icons.Edit/> Rename</button><button onClick={() => { if(confirm('Hapus bab ini?')) onDelete(section.id); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex gap-2 items-center"><Icons.Trash/> Delete</button></div></>)}
+                        <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-700"><Icons.Menu/></button>
+                        {showMenu && (<><div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)}/><div className="absolute right-0 top-6 w-32 bg-[#18181b] rounded-lg shadow-xl border border-zinc-700 z-30 py-1 flex flex-col"><button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs hover:bg-zinc-800 flex gap-2 items-center text-zinc-300 hover:text-white"><Icons.Edit/> Rename</button><button onClick={() => { if(confirm('Hapus bab ini?')) onDelete(section.id); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 flex gap-2 items-center"><Icons.Trash/> Delete</button></div></>)}
                     </div>
                 </div>
             </div>
-            {isOpen && (<ul className="ml-5 pl-3 border-l border-slate-200 space-y-0.5 mt-1 pb-1">{section.children?.map((child) => (<li key={child.id} className={`group/sub flex items-center justify-between py-1 px-2 rounded-md ${activeSection?.id === child.id ? 'bg-slate-100 text-indigo-600 font-medium' : 'hover:bg-slate-50 text-slate-500'}`}><button onClick={() => onSelect(child)} className="text-xs text-left truncate flex-1 flex items-center gap-2"><Icons.Sub />{child.title}</button><button onClick={(e) => { e.stopPropagation(); if(confirm('Hapus sub-bab?')) onDelete(child.id); }} className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-slate-300 hover:text-red-500"><Icons.Trash/></button></li>))}{isAddingChild && (<li className="flex items-center gap-1 px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-sm ml-1"><input autoFocus value={newChildTitle} onChange={(e) => setNewChildTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveChild(); if (e.key === 'Escape') setIsAddingChild(false); }} placeholder="Judul sub-bab..." className="w-full text-xs border-none p-0 focus:ring-0 text-slate-700 placeholder:text-slate-300" /><button onClick={handleSaveChild} className="text-emerald-500 hover:text-emerald-700"><Icons.Check/></button><button onClick={() => setIsAddingChild(false)} className="text-red-400 hover:text-red-600"><Icons.Close/></button></li>)}</ul>)}
+            {isOpen && (<ul className="ml-5 pl-3 border-l border-zinc-800 space-y-0.5 mt-1 pb-1">{section.children?.map((child) => (<li key={child.id} className={`group/sub flex items-center justify-between py-1 px-2 rounded-md ${activeSection?.id === child.id ? 'bg-zinc-800 text-indigo-400 font-medium' : 'hover:bg-zinc-800/50 text-zinc-500 hover:text-zinc-300'}`}><button onClick={() => onSelect(child)} className="text-xs text-left truncate flex-1 flex items-center gap-2"><Icons.Sub />{child.title}</button><button onClick={(e) => { e.stopPropagation(); if(confirm('Hapus sub-bab?')) onDelete(child.id); }} className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-zinc-600 hover:text-red-400"><Icons.Trash/></button></li>))}{isAddingChild && (<li className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-indigo-500/50 rounded-md shadow-sm ml-1"><input autoFocus value={newChildTitle} onChange={(e) => setNewChildTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveChild(); if (e.key === 'Escape') setIsAddingChild(false); }} placeholder="Judul sub-bab..." className="w-full text-xs border-none bg-transparent p-0 focus:ring-0 text-white placeholder:text-zinc-600" /><button onClick={handleSaveChild} className="text-emerald-500 hover:text-emerald-400"><Icons.Check/></button><button onClick={() => setIsAddingChild(false)} className="text-red-500 hover:text-red-400"><Icons.Close/></button></li>)}</ul>)}
         </li>
+    );
+};
+
+// --- MODAL EDIT COVER (Dark Mode) ---
+const EditCoverModal = ({ laporan, onClose }) => {
+    const { data, setData, put, processing, errors } = useForm({
+        judul: laporan.judul || '',
+        nama: laporan.nama || '',
+        nim: laporan.nim || '',
+        prodi: laporan.prodi || '',
+        mata_kuliah: laporan.mata_kuliah || '',
+        dosen_pembimbing: laporan.dosen_pembimbing || '',
+        instansi: laporan.instansi || '',
+        kota: laporan.kota || '',
+        tahun_ajaran: laporan.tahun_ajaran || '',
+        logo: null,
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+        router.post(route('laporan.update', laporan.id), {
+            _method: 'put',
+            ...data
+        }, {
+            forceFormData: true,
+            onSuccess: () => {
+                onClose();
+                alert("Data Cover Berhasil Disimpan!");
+            }
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-zinc-700 flex justify-between items-center bg-zinc-900/50 sticky top-0">
+                    <h3 className="text-lg font-bold text-white">Edit Data Cover</h3>
+                    <button onClick={onClose} className="text-zinc-500 hover:text-white"><Icons.Close/></button>
+                </div>
+                <form onSubmit={submit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Judul Laporan</label>
+                        <input type="text" value={data.judul} onChange={e => setData('judul', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white focus:ring-indigo-500 focus:border-indigo-500" required />
+                        {errors.judul && <div className="text-red-500 text-xs mt-1">{errors.judul}</div>}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Nama Mahasiswa</label>
+                            <input type="text" value={data.nama} onChange={e => setData('nama', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">NIM</label>
+                            <input type="text" value={data.nim} onChange={e => setData('nim', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Program Studi</label>
+                            <input type="text" value={data.prodi} onChange={e => setData('prodi', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Mata Kuliah</label>
+                            <input type="text" value={data.mata_kuliah} onChange={e => setData('mata_kuliah', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Dosen Pengampu</label>
+                        <input type="text" value={data.dosen_pembimbing} onChange={e => setData('dosen_pembimbing', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Instansi / Universitas</label>
+                        <input type="text" value={data.instansi} onChange={e => setData('instansi', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Kota</label>
+                            <input type="text" value={data.kota} onChange={e => setData('kota', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Tahun Ajaran</label>
+                            <input type="text" value={data.tahun_ajaran} onChange={e => setData('tahun_ajaran', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Ganti Logo (Opsional)</label>
+                        <input type="file" accept="image/*" onChange={e => setData('logo', e.target.files[0])} className="w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-zinc-800 file:text-indigo-400 hover:file:bg-zinc-700" />
+                    </div>
+
+                    <div className="pt-4 border-t border-zinc-700 flex gap-3">
+                        <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-zinc-800 text-zinc-300 rounded-lg text-sm font-bold hover:bg-zinc-700 transition border border-zinc-700">Batal</button>
+                        <button type="submit" disabled={processing} className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 transition shadow-md disabled:opacity-50">
+                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     );
 };
 
@@ -221,22 +324,28 @@ export default function Edit({ auth, laporan }) {
     const [showRootAdd, setShowRootAdd] = useState(false);
     const [newRootTitle, setNewRootTitle] = useState('');
     const [isImporting, setIsImporting] = useState(false);
-    
-    // WORD COUNT STATE
+    const [showEditCover, setShowEditCover] = useState(false);
     const [wordCount, setWordCount] = useState(0);
 
     const editor = useEditor({
         extensions: [ StarterKit, TextStyle, FontFamily, TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ inline: false, allowBase64: true, HTMLAttributes: { class: 'content-image' } }) ],
         content: activeSection?.content || "",
+        
+        // 🔥 INI JURUS PAMUNGKAS: SUNTIK CLASS LANGSUNG KE TIPTAP 🔥
+        editorProps: {
+            attributes: {
+                class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl focus:outline-none text-black !text-black min-h-full leading-relaxed',
+                style: 'color: black !important;' // Paksa style inline juga buat jaga-jaga
+            },
+        },
+
         onUpdate: ({ editor }) => {
             setSaveStatus(null);
-            // Count words manually (Regex simple)
             const text = editor.getText();
             const words = text.trim().split(/\s+/).filter(w => w !== "").length;
             setWordCount(words);
         },
         onCreate: ({ editor }) => {
-             // Init Word Count
              const text = editor.getText();
              const words = text.trim().split(/\s+/).filter(w => w !== "").length;
              setWordCount(words);
@@ -246,7 +355,6 @@ export default function Edit({ auth, laporan }) {
     useEffect(() => {
         if (editor && activeSection && editor.getHTML() !== activeSection.content) {
             editor.commands.setContent(activeSection.content);
-            // Reset word count on section change
             const text = editor.getText();
             const words = text.trim().split(/\s+/).filter(w => w !== "").length;
             setWordCount(words);
@@ -266,7 +374,6 @@ export default function Edit({ auth, laporan }) {
         });
     };
 
-    // SAVE FUNCTION (Memoized for Shortcut)
     const handleSaveContent = useCallback(() => {
         if (!activeSection || !editor) return;
         setIsProcessing(true);
@@ -278,13 +385,9 @@ export default function Edit({ auth, laporan }) {
         });
     }, [activeSection, editor]);
 
-    // KEYBOARD SHORTCUT LISTENER (Ctrl+S / Cmd+S)
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault(); // Prevent Browser Save Dialog
-                handleSaveContent();
-            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSaveContent(); }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -312,79 +415,74 @@ export default function Edit({ auth, laporan }) {
     return (
         <AuthenticatedLayout user={auth.user} header={
             <div className="flex items-start gap-3 min-h-[2rem] py-1">
-                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0 p-1.5 bg-slate-200 rounded text-slate-600 hover:bg-slate-300 mt-0.5"><Icons.Menu/></button>
-                <h2 className="font-bold text-lg text-slate-800 leading-snug break-words flex-1">{laporan.judul}</h2>
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0 p-1.5 bg-zinc-800 rounded text-zinc-400 hover:bg-zinc-700 mt-0.5"><Icons.Menu/></button>
+                <h2 className="font-bold text-lg text-zinc-100 leading-snug break-words flex-1">{laporan.judul}</h2>
             </div>
         }>
             <Head title={`Editor - ${laporan.judul}`} />
-            <style>{`
-                .ProseMirror { min-height: 100%; outline: none; padding-bottom: 50px; font-family: 'Times New Roman', Times, serif; font-size: 1.125rem; line-height: 1.75; }
-                .ProseMirror img { display: block; margin: 1.5rem auto; max-width: 80%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-                .ProseMirror p.img-caption { text-align: center; font-size: 0.875rem; color: #64748b; font-style: italic; margin-top: -0.5rem; margin-bottom: 2rem; font-family: sans-serif; }
-                .ProseMirror ul, .ProseMirror ol { padding-left: 1.5rem; margin: 1rem 0; }
-                .ProseMirror ul { list-style-type: disc; } .ProseMirror ol { list-style-type: decimal; }
-                .ProseMirror pre { background: #0d1117; color: #c9d1d9; padding: 0.75rem 1rem; border-radius: 0.5rem; font-family: 'JetBrains Mono', monospace; margin: 1rem 0; font-size: 0.875rem; }
-                .ProseMirror blockquote { border-left: 3px solid #6366f1; padding-left: 1rem; color: #64748b; font-style: italic; margin: 1rem 0; }
-            `}</style>
+            
+            {showEditCover && (
+                <EditCoverModal laporan={laporan} onClose={() => setShowEditCover(false)} />
+            )}
 
-            <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-slate-100">
-                {/* --- SIDEBAR FIX: ADDED OVERFLOW-HIDDEN --- */}
-                <div className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r transition-all duration-300 flex flex-col shadow-lg z-10 overflow-hidden`}>
-                    <div className="p-4 border-b bg-white space-y-3">
-                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Outline</span><span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{treeSections.length} Bab</span></div>
+            <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-[#09090b]">
+                {/* --- SIDEBAR --- */}
+                <div className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-[#18181b] border-r border-zinc-800 transition-all duration-300 flex flex-col shadow-lg z-10 overflow-hidden`}>
+                    <div className="p-4 border-b border-zinc-800 bg-[#18181b] space-y-3">
+                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Outline</span><span className="text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-full">{treeSections.length} Bab</span></div>
+                        <button onClick={() => setShowEditCover(true)} className="w-full flex items-center justify-center gap-1.5 py-2 bg-amber-500/10 text-amber-500 font-bold rounded-lg border border-amber-500/20 text-xs hover:bg-amber-500/20 mb-2 transition"><Icons.EditCover/> Edit Data Cover</button>
                         <div className="grid grid-cols-2 gap-2">
-                            <button onClick={() => setShowRootAdd(true)} className="flex items-center justify-center gap-1 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 text-xs hover:bg-indigo-100"><Icons.Plus/> Bab Baru</button>
-                            <label className={`flex items-center justify-center gap-1 py-2 bg-white text-slate-600 font-bold rounded-lg border border-slate-200 text-xs hover:bg-slate-50 cursor-pointer ${isImporting ? 'opacity-50' : ''}`}>{isImporting ? <span className="animate-spin text-xs">⏳</span> : <Icons.Import/>}{isImporting ? 'Loading' : 'Import Word'}<input type="file" accept=".docx" onChange={handleImportTemplate} disabled={isImporting} className="hidden" /></label>
+                            <button onClick={() => setShowRootAdd(true)} className="flex items-center justify-center gap-1 py-2 bg-indigo-500/10 text-indigo-400 font-bold rounded-lg border border-indigo-500/20 text-xs hover:bg-indigo-500/20"><Icons.Plus/> Bab Baru</button>
+                            <label className={`flex items-center justify-center gap-1 py-2 bg-zinc-800 text-zinc-400 font-bold rounded-lg border border-zinc-700 text-xs hover:bg-zinc-700 cursor-pointer ${isImporting ? 'opacity-50' : ''}`}>{isImporting ? <span className="animate-spin text-xs">⏳</span> : <Icons.Import/>}{isImporting ? 'Loading' : 'Import Word'}<input type="file" accept=".docx" onChange={handleImportTemplate} disabled={isImporting} className="hidden" /></label>
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}><SortableContext items={treeSections.map(s => s.id)} strategy={verticalListSortingStrategy}><ul>{treeSections.map((section, index) => (<SortableSectionItem key={section.id} section={section} activeSection={activeSection} onSelect={setActiveSection} onAddSubSection={handleAddSubSection} index={index} onDelete={handleDeleteSection} />))}</ul></SortableContext></DndContext>
-                        {showRootAdd && (<div className="mt-2 flex items-center gap-1 px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-sm animate-in fade-in slide-in-from-top-1"><input autoFocus value={newRootTitle} onChange={(e) => setNewRootTitle(e.target.value)} onKeyDown={async (e) => { if (e.key === 'Enter' && newRootTitle.trim()) { try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) {} } if (e.key === 'Escape') setShowRootAdd(false); }} placeholder="Judul Bab Baru..." className="w-full text-sm border-none p-0 focus:ring-0 placeholder:text-slate-300" /><button onClick={() => setShowRootAdd(false)} className="text-slate-400 hover:text-red-500"><Icons.Close/></button></div>)}
+                        {showRootAdd && (<div className="mt-2 flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-indigo-500/50 rounded-md shadow-sm animate-in fade-in slide-in-from-top-1"><input autoFocus value={newRootTitle} onChange={(e) => setNewRootTitle(e.target.value)} onKeyDown={async (e) => { if (e.key === 'Enter' && newRootTitle.trim()) { try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) {} } if (e.key === 'Escape') setShowRootAdd(false); }} placeholder="Judul Bab Baru..." className="w-full text-sm border-none bg-transparent p-0 focus:ring-0 text-white placeholder:text-zinc-600" /><button onClick={() => setShowRootAdd(false)} className="text-zinc-500 hover:text-red-500"><Icons.Close/></button></div>)}
                     </div>
-                    <div className="p-3 border-t bg-slate-50 space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                    <div className="p-3 border-t border-zinc-800 bg-[#18181b] space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)] z-10">
                         <div className="flex flex-col gap-2">
-                            {saveStatus === 'saved' && (<div className="text-center text-xs font-bold text-emerald-600 bg-emerald-50 py-1 rounded border border-emerald-100 animate-pulse">✅ Berhasil Disimpan!</div>)}
-                            <button onClick={handleSaveContent} disabled={isProcessing} className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md flex justify-center items-center gap-2" title="Tekan Ctrl+S untuk simpan">{isProcessing ? 'Menyimpan...' : <><Icons.Check /> Simpan Laporan</>}</button>
+                            {saveStatus === 'saved' && (<div className="text-center text-xs font-bold text-emerald-400 bg-emerald-500/10 py-1 rounded border border-emerald-500/20 animate-pulse">✅ Berhasil Disimpan!</div>)}
+                            <button onClick={handleSaveContent} disabled={isProcessing} className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-lg flex justify-center items-center gap-2" title="Tekan Ctrl+S untuk simpan">{isProcessing ? 'Menyimpan...' : <><Icons.Check /> Simpan Laporan</>}</button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200"><a href={route("laporan.preview", laporan.id)} target="_blank" className="flex items-center justify-center gap-1 py-2 text-xs font-bold border rounded bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition">Preview</a><a href={route("laporan.download.pdf", laporan.id)} className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-red-100 text-red-600 bg-red-50 rounded hover:bg-red-100 transition">PDF</a></div><a href={route("laporan.download.docx", laporan.id)} className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold border border-blue-100 text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition">Export Word (.docx)</a>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800"><a href={route("laporan.preview", laporan.id)} target="_blank" className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-zinc-700 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition">Preview</a><a href={route("laporan.download.pdf", laporan.id)} className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-red-500/20 text-red-400 bg-red-500/10 rounded hover:bg-red-500/20 transition">PDF</a></div><a href={route("laporan.download.docx", laporan.id)} className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold border border-blue-500/20 text-blue-400 bg-blue-500/10 rounded hover:bg-blue-500/20 transition">Export Word (.docx)</a>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto bg-slate-100 p-8 flex justify-center">
+                <div className="flex-1 overflow-y-auto bg-[#09090b] p-8 flex justify-center">
                     {activeSection ? (
                         <div className="w-full max-w-[210mm] flex flex-col gap-4 mb-10">
-                            {/* PAPER */}
-                            <div className="bg-white shadow-xl min-h-[297mm] rounded-xl overflow-hidden ring-1 ring-slate-200 flex flex-col relative group">
+                            {/* 🔥 KERTAS PUTIH - TAPI TEXT-NYA ITEM DONG 🔥 */}
+                            <div className="bg-white shadow-2xl min-h-[297mm] rounded-xl overflow-hidden ring-1 ring-zinc-700/50 flex flex-col relative group text-black">
                                 <MenuBar editor={editor} onImageUpload={handleImageUpload} />
-                                <div className="p-[2.5cm] min-h-[25cm] cursor-text flex-1" onClick={() => editor?.chain().focus().run()}>
+                                {/* Tambahin class text-black di sini juga biar double lock */}
+                                <div className="p-[2.5cm] min-h-[25cm] cursor-text flex-1 text-black" onClick={() => editor?.chain().focus().run()}>
                                     <EditorContent editor={editor} />
                                 </div>
                                 
-                                {/* WORD COUNT BADGE */}
-                                <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-sm border border-slate-200 px-3 py-1 rounded-full text-xs font-mono text-slate-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity select-none">
+                                <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur-sm border border-zinc-700 px-3 py-1 rounded-full text-xs font-mono text-zinc-400 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity select-none">
                                     {wordCount} Kata
                                 </div>
                             </div>
                             
-                            {/* NAVIGATION FOOTER */}
                             <div className="flex justify-between items-center px-2">
                                 {prevSection ? (
-                                    <button onClick={() => setActiveSection(prevSection)} className="group flex flex-col items-start gap-1 p-3 rounded-lg hover:bg-white hover:shadow-md transition-all text-slate-500 hover:text-indigo-600">
+                                    <button onClick={() => setActiveSection(prevSection)} className="group flex flex-col items-start gap-1 p-3 rounded-lg hover:bg-zinc-900 hover:shadow-md transition-all text-zinc-500 hover:text-indigo-400">
                                         <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1"><Icons.ArrowLeft/> Sebelumnya</span>
-                                        <span className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 max-w-[200px] truncate">{prevSection.title}</span>
+                                        <span className="text-sm font-semibold text-zinc-300 group-hover:text-indigo-300 max-w-[200px] truncate">{prevSection.title}</span>
                                     </button>
                                 ) : <div/>}
 
                                 {nextSection ? (
-                                    <button onClick={() => setActiveSection(nextSection)} className="group flex flex-col items-end gap-1 p-3 rounded-lg hover:bg-white hover:shadow-md transition-all text-slate-500 hover:text-indigo-600">
+                                    <button onClick={() => setActiveSection(nextSection)} className="group flex flex-col items-end gap-1 p-3 rounded-lg hover:bg-zinc-900 hover:shadow-md transition-all text-zinc-500 hover:text-indigo-400">
                                         <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">Selanjutnya <Icons.ArrowRight/></span>
-                                        <span className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 max-w-[200px] truncate">{nextSection.title}</span>
+                                        <span className="text-sm font-semibold text-zinc-300 group-hover:text-indigo-300 max-w-[200px] truncate">{nextSection.title}</span>
                                     </button>
                                 ) : <div/>}
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-400 h-full">
+                        <div className="flex flex-col items-center justify-center text-zinc-600 h-full">
                             <Icons.Edit />
                             <p className="mt-2 text-sm">Pilih Bab di kiri untuk mulai menulis.</p>
                         </div>

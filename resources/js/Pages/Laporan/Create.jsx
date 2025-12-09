@@ -1,102 +1,113 @@
-import React, { useState, useEffect } from "react";
-import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, useForm, Link } from "@inertiajs/react";
-import TextInput from "@/Components/TextInput";
-import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
-import InputError from "@/Components/InputError";
-import SelectInput from "@/Components/SelectInput";
+import React, { useState } from 'react';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Head, Link, useForm } from '@inertiajs/react';
 
-// --- IMPORT FILEPOND ---
-import { FilePond, registerPlugin } from 'react-filepond';
-import 'filepond/dist/filepond.min.css';
-import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
-import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+// --- ICONS ---
+const Icons = {
+    ArrowLeft: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>,
+    Save: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>,
+    Upload: () => <svg className="w-8 h-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>,
+    Eye: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>,
+    Close: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+};
 
-registerPlugin(FilePondPluginImagePreview);
+// --- MODAL PREVIEW COVER (BARU) ---
+const CoverPreviewModal = ({ data, onClose }) => {
+    // Helper buat tampilin preview logo dari file object
+    const logoUrl = data.logo ? URL.createObjectURL(data.logo) : null;
 
-// ✅ TERIMA PROPS selectedTemplate
-const Create = ({ auth, report_type, report_types, selectedTemplate }) => {
-    
-    const [files, setFiles] = useState([]);
-    const [previewUrl, setPreviewUrl] = useState("");
-    const [showPreviewModal, setShowPreviewModal] = useState(false);
-    const [previewLoading, setPreviewLoading] = useState(false);
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="relative w-full max-w-2xl h-[90vh] bg-zinc-900 rounded-2xl shadow-2xl flex flex-col border border-zinc-700">
+                {/* Header Modal */}
+                <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <span>📄</span> Pratinjau Cover
+                    </h3>
+                    <button onClick={onClose} className="text-zinc-400 hover:text-white transition">
+                        <Icons.Close />
+                    </button>
+                </div>
 
-    // ✅ INISIALISASI DATA DENGAN TEMPLATE ID
+                {/* Body Modal (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-6 bg-zinc-800/50 flex justify-center">
+                    {/* Simulasi Kertas A4 */}
+                    <div className="w-[210mm] min-h-[297mm] bg-white text-black p-[2.54cm] shadow-xl origin-top scale-75 sm:scale-90 lg:scale-100 transition-transform duration-300 flex flex-col items-center text-center font-serif leading-relaxed">
+                        
+                        {/* Judul & Jenis */}
+                        <div className="mb-14 w-full">
+                            <h1 className="text-xl font-bold uppercase mb-2">{data.judul || "JUDUL LAPORAN"}</h1>
+                            <h2 className="text-lg font-bold uppercase">{data.report_type || "JENIS LAPORAN"}</h2>
+                        </div>
+
+                        {/* Logo */}
+                        <div className="mb-14 flex-1 flex items-center justify-center w-full">
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Logo" className="w-32 h-32 object-contain" />
+                            ) : (
+                                <div className="w-32 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs">
+                                    Logo Disini
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Identitas Penulis */}
+                        <div className="mb-12 w-full">
+                            <p className="text-md mb-2">Disusun Oleh:</p>
+                            <p className="text-lg font-bold uppercase">{data.nama || "Nama Mahasiswa"}</p>
+                            <p className="text-lg font-bold">{data.nim || "NIM"}</p>
+                        </div>
+
+                        {/* Identitas Dosen */}
+                        <div className="mb-12 w-full">
+                            <p className="text-md mb-2">Dosen Pengampu:</p>
+                            <p className="text-lg font-bold uppercase">{data.dosen_pembimbing || "Nama Dosen"}</p>
+                        </div>
+
+                        {/* Footer Kampus */}
+                        <div className="mt-auto w-full">
+                            <p className="text-lg font-bold uppercase">{data.prodi || "PROGRAM STUDI"}</p>
+                            <p className="text-lg font-bold uppercase">{data.instansi || "INSTITUSI / KAMPUS"}</p>
+                            <p className="text-lg font-bold uppercase">{data.kota || "KOTA"}</p>
+                            <p className="text-lg font-bold uppercase">{data.tahun_ajaran || "TAHUN"}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Modal */}
+                <div className="p-4 border-t border-zinc-700 bg-zinc-900 rounded-b-2xl">
+                    <p className="text-xs text-center text-zinc-500">
+                        *Ini hanya pratinjau kasar. Hasil akhir (DOCX/PDF) akan lebih rapi sesuai format resmi.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default function Create({ auth }) {
+    // Setup Form Inertia
     const { data, setData, post, processing, errors } = useForm({
-        report_type: report_type || (report_types && report_types.length > 0 ? report_types[0] : ''),
-        // Jika ada template, pre-fill judul biar keren
-        judul: selectedTemplate ? `Laporan: ${selectedTemplate.name}` : "", 
-        nama: auth.user.name || "",
-        nim: "",
-        prodi: "",
-        mata_kuliah: "",
-        dosen_pembimbing: "",
-        instansi: "",
-        kota: "",
-        tahun_ajaran: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1),
+        report_type: 'Makalah',
+        tahun_ajaran: '2025/2026',
+        judul: '',
+        instansi: '',
+        nama: auth.user.name || '',
+        nim: '',
+        prodi: '',
+        kota: '',
+        mata_kuliah: '',
+        dosen_pembimbing: '',
+        logo_position: 'tengah',
         logo: null,
-        logo_position: "tengah",
-        // ✅ SIMPAN TEMPLATE ID (Hidden)
-        template_id: selectedTemplate ? selectedTemplate.id : null,
     });
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setData(name, value);
-    };
-
-    const handlePreview = async () => {
-        setPreviewLoading(true);
-        setPreviewUrl('');
-        
-        const formData = new FormData();
-        Object.keys(data).forEach(key => {
-            const value = data[key] === null ? '' : data[key];
-            if (key === 'logo' && value instanceof File) {
-                 formData.append(key, value);
-            } else if (key !== 'logo') {
-                 formData.append(key, value);
-            }
-        });
-
-        try {
-            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
-            const response = await fetch(route("laporan.preview.live"), {
-                method: "POST",
-                body: formData,
-                headers: {
-                    "X-CSRF-TOKEN": token,
-                    "Accept": "text/html",
-                    "X-Requested-With": "XMLHttpRequest", 
-                },
-                credentials: 'include', 
-            });
-
-            if (response.status === 419) {
-                throw new Error("Sesi kadaluarsa (419). Silakan refresh halaman.");
-            }
-            if (!response.ok) throw new Error("Gagal memuat preview.");
-            
-            const blob = await response.blob();
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
-            setPreviewUrl(URL.createObjectURL(blob));
-            setShowPreviewModal(true);
-        } catch (error) {
-            console.error("Preview Error:", error);
-            const msg = error.message.includes("419") 
-                ? "Sesi kamu sudah habis. Coba refresh halaman!" 
-                : "Gagal menampilkan pratinjau. Pastikan data terisi.";
-            alert(msg);
-        } finally {
-            setPreviewLoading(false);
-        }
-    };
+    // State buat modal preview
+    const [showPreview, setShowPreview] = useState(false);
 
     const submit = (e) => {
         e.preventDefault();
-        post(route("laporan.store"));
+        post(route('laporan.store'));
     };
 
     return (
@@ -105,293 +116,269 @@ const Create = ({ auth, report_type, report_types, selectedTemplate }) => {
             header={
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="font-bold text-2xl text-slate-800 leading-tight">
-                            Buat Laporan Baru 📝
+                        <h2 className="font-bold text-2xl text-white leading-tight flex items-center gap-2">
+                            <span>📝</span> Buat Laporan Baru
                         </h2>
-                        <p className="text-sm text-slate-500 mt-1">
+                        <p className="text-sm text-zinc-400 mt-1">
                             Isi detail di bawah untuk generate struktur laporan otomatis.
                         </p>
                     </div>
                     <Link
                         href={route('dashboard')}
-                        className="text-sm font-medium text-slate-500 hover:text-slate-800 transition"
+                        className="flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-white transition-colors"
                     >
-                        ← Kembali ke Dashboard
+                        <Icons.ArrowLeft /> Kembali ke Dashboard
                     </Link>
                 </div>
             }
         >
             <Head title="Buat Laporan Baru" />
 
-            <div className="py-10">
-                <div className="max-w-5xl mx-auto sm:px-6 lg:px-8">
-                    
-                    {/* ✅ BADGE JIKA MENGGUNAKAN TEMPLATE */}
-                    {selectedTemplate && (
-                        <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-4">
-                            <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="text-indigo-800 font-bold text-lg">Menggunakan Template: {selectedTemplate.name}</h3>
-                                <p className="text-indigo-600 text-sm mt-1">
-                                    Setelah kamu menekan tombol <b>Simpan</b>, sistem akan otomatis membuat Bab & Sub-bab berdasarkan file template ini.
-                                </p>
-                            </div>
-                        </div>
-                    )}
+            {/* Render Modal Preview Kalau State True */}
+            {showPreview && (
+                <CoverPreviewModal data={data} onClose={() => setShowPreview(false)} />
+            )}
 
+            <div className="py-10">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                     <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
-                        {/* KOLOM KIRI */}
+                        {/* KOLOM KIRI: FORM UTAMA */}
                         <div className="lg:col-span-2 space-y-6">
                             
-                            {/* Card 1 */}
-                            <div className="bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200 rounded-2xl">
-                                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">1</span>
+                            {/* CARD 1: INFORMASI DASAR */}
+                            <div className="bg-[#18181b] p-6 sm:p-8 rounded-2xl border border-zinc-800 shadow-xl">
+                                <h3 className="text-lg font-bold text-white border-b border-zinc-800 pb-4 mb-6 flex items-center gap-3">
+                                    <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold">1</span>
                                     Informasi Dasar
                                 </h3>
                                 
                                 <div className="space-y-5">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        {/* Jenis Laporan */}
                                         <div>
-                                            <InputLabel htmlFor="report_type" value="Jenis Laporan" className="mb-1" />
-                                            <SelectInput
-                                                id="report_type"
-                                                name="report_type"
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1.5">Jenis Laporan</label>
+                                            <select
                                                 value={data.report_type}
-                                                className="block w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                                onChange={handleInputChange}
-                                                required
+                                                onChange={(e) => setData('report_type', e.target.value)}
+                                                className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
                                             >
-                                                {report_types && report_types.length > 0 ? (
-                                                    report_types.map(type => <option key={type} value={type}>{type}</option>)
-                                                ) : (
-                                                    <option value="">Pilih Jenis</option>
-                                                )}
-                                            </SelectInput>
-                                            <InputError message={errors.report_type} className="mt-2" />
+                                                <option value="Makalah">Makalah</option>
+                                                <option value="Proposal">Proposal</option>
+                                                <option value="Laporan Praktikum">Laporan Praktikum</option>
+                                                <option value="Studi Kasus">Studi Kasus</option>
+                                                <option value="Skripsi">Skripsi</option>
+                                            </select>
+                                            {errors.report_type && <div className="text-red-500 text-xs mt-1">{errors.report_type}</div>}
                                         </div>
+                                        
+                                        {/* Tahun Ajaran */}
                                         <div>
-                                            <InputLabel htmlFor="tahun_ajaran" value="Tahun Ajaran" className="mb-1" />
-                                            <TextInput 
-                                                id="tahun_ajaran" 
-                                                name="tahun_ajaran" 
-                                                value={data.tahun_ajaran} 
-                                                className="block w-full rounded-xl" 
-                                                onChange={handleInputChange} 
+                                            <label className="block text-sm font-medium text-zinc-400 mb-1.5">Tahun Ajaran</label>
+                                            <input
+                                                type="text"
+                                                value={data.tahun_ajaran}
+                                                onChange={(e) => setData('tahun_ajaran', e.target.value)}
                                                 placeholder="Contoh: 2024/2025"
-                                                required 
+                                                className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm placeholder:text-zinc-600"
                                             />
-                                            <InputError message={errors.tahun_ajaran} className="mt-2" />
+                                            {errors.tahun_ajaran && <div className="text-red-500 text-xs mt-1">{errors.tahun_ajaran}</div>}
                                         </div>
                                     </div>
 
+                                    {/* Judul */}
                                     <div>
-                                        <InputLabel htmlFor="judul" value="Judul Laporan" className="mb-1" />
-                                        <TextInput 
-                                            id="judul" 
-                                            name="judul" 
-                                            value={data.judul} 
-                                            className="block w-full rounded-xl font-medium" 
-                                            onChange={handleInputChange} 
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Judul Laporan</label>
+                                        <input
+                                            type="text"
+                                            value={data.judul}
+                                            onChange={(e) => setData('judul', e.target.value)}
                                             placeholder="Masukkan judul lengkap laporan..."
-                                            required 
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm placeholder:text-zinc-600 font-medium"
                                         />
-                                        <InputError message={errors.judul} className="mt-2" />
+                                        {errors.judul && <div className="text-red-500 text-xs mt-1">{errors.judul}</div>}
                                     </div>
 
+                                    {/* Instansi */}
                                     <div>
-                                        <InputLabel htmlFor="instansi" value="Nama Institusi / Kampus" className="mb-1" />
-                                        <TextInput 
-                                            id="instansi" 
-                                            name="instansi" 
-                                            value={data.instansi} 
-                                            className="block w-full rounded-xl" 
-                                            onChange={handleInputChange} 
-                                            required 
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Nama Institusi / Kampus</label>
+                                        <input
+                                            type="text"
+                                            value={data.instansi}
+                                            onChange={(e) => setData('instansi', e.target.value)}
+                                            placeholder="Contoh: Universitas Telkom"
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm placeholder:text-zinc-600"
                                         />
-                                        <InputError message={errors.instansi} className="mt-2" />
+                                        {errors.instansi && <div className="text-red-500 text-xs mt-1">{errors.instansi}</div>}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Card 2 */}
-                            <div className="bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200 rounded-2xl">
-                                <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">2</span>
+                            {/* CARD 2: DETAIL AKADEMIK */}
+                            <div className="bg-[#18181b] p-6 sm:p-8 rounded-2xl border border-zinc-800 shadow-xl">
+                                <h3 className="text-lg font-bold text-white border-b border-zinc-800 pb-4 mb-6 flex items-center gap-3">
+                                    <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold">2</span>
                                     Detail Akademik
                                 </h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    {/* Nama */}
                                     <div>
-                                        <InputLabel htmlFor="nama" value="Nama Penulis" className="mb-1" />
-                                        <TextInput id="nama" name="nama" value={data.nama} className="block w-full rounded-xl bg-slate-50" onChange={handleInputChange} required />
-                                        <InputError message={errors.nama} className="mt-2" />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Nama Penulis</label>
+                                        <input
+                                            type="text"
+                                            value={data.nama}
+                                            onChange={(e) => setData('nama', e.target.value)}
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
+                                        />
+                                        {errors.nama && <div className="text-red-500 text-xs mt-1">{errors.nama}</div>}
                                     </div>
+
+                                    {/* NIM */}
                                     <div>
-                                        <InputLabel htmlFor="nim" value="NIM / NISN" className="mb-1" />
-                                        <TextInput id="nim" name="nim" value={data.nim} className="block w-full rounded-xl" onChange={handleInputChange} required placeholder="Nomor Induk Mahasiswa" />
-                                        <InputError message={errors.nim} className="mt-2" />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">NIM / NISN</label>
+                                        <input
+                                            type="text"
+                                            value={data.nim}
+                                            onChange={(e) => setData('nim', e.target.value)}
+                                            placeholder="Nomor Induk Mahasiswa"
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm placeholder:text-zinc-600"
+                                        />
+                                        {errors.nim && <div className="text-red-500 text-xs mt-1">{errors.nim}</div>}
                                     </div>
+
+                                    {/* Prodi */}
                                     <div>
-                                        <InputLabel htmlFor="prodi" value="Program Studi / Jurusan" className="mb-1" />
-                                        <TextInput id="prodi" name="prodi" value={data.prodi} className="block w-full rounded-xl" onChange={handleInputChange} required />
-                                        <InputError message={errors.prodi} className="mt-2" />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Program Studi / Jurusan</label>
+                                        <input
+                                            type="text"
+                                            value={data.prodi}
+                                            onChange={(e) => setData('prodi', e.target.value)}
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
+                                        />
+                                        {errors.prodi && <div className="text-red-500 text-xs mt-1">{errors.prodi}</div>}
                                     </div>
+
+                                    {/* Kota */}
                                     <div>
-                                        <InputLabel htmlFor="kota" value="Kota Domisili Kampus" className="mb-1" />
-                                        <TextInput id="kota" name="kota" value={data.kota} className="block w-full rounded-xl" onChange={handleInputChange} required />
-                                        <InputError message={errors.kota} className="mt-2" />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Kota Domisili Kampus</label>
+                                        <input
+                                            type="text"
+                                            value={data.kota}
+                                            onChange={(e) => setData('kota', e.target.value)}
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
+                                        />
+                                        {errors.kota && <div className="text-red-500 text-xs mt-1">{errors.kota}</div>}
                                     </div>
+
+                                    {/* Matkul */}
                                     <div className="md:col-span-2">
-                                        <InputLabel htmlFor="mata_kuliah" value="Mata Kuliah / Topik" className="mb-1" />
-                                        <TextInput id="mata_kuliah" name="mata_kuliah" value={data.mata_kuliah} className="block w-full rounded-xl" onChange={handleInputChange} required />
-                                        <InputError message={errors.mata_kuliah} className="mt-2" />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Mata Kuliah / Topik</label>
+                                        <input
+                                            type="text"
+                                            value={data.mata_kuliah}
+                                            onChange={(e) => setData('mata_kuliah', e.target.value)}
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
+                                        />
+                                        {errors.mata_kuliah && <div className="text-red-500 text-xs mt-1">{errors.mata_kuliah}</div>}
                                     </div>
+
+                                    {/* Dosen */}
                                     <div className="md:col-span-2">
-                                        <InputLabel htmlFor="dosen_pembimbing" value="Dosen Pengampu / Pembimbing" className="mb-1" />
-                                        <TextInput id="dosen_pembimbing" name="dosen_pembimbing" value={data.dosen_pembimbing} className="block w-full rounded-xl" onChange={handleInputChange} required />
-                                        <InputError message={errors.dosen_pembimbing} className="mt-2" />
+                                        <label className="block text-sm font-medium text-zinc-400 mb-1.5">Dosen Pengampu / Pembimbing</label>
+                                        <input
+                                            type="text"
+                                            value={data.dosen_pembimbing}
+                                            onChange={(e) => setData('dosen_pembimbing', e.target.value)}
+                                            className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
+                                        />
+                                        {errors.dosen_pembimbing && <div className="text-red-500 text-xs mt-1">{errors.dosen_pembimbing}</div>}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* KOLOM KANAN */}
+                        {/* KOLOM KANAN: SIDEBAR */}
                         <div className="space-y-6">
                             
-                            {/* Card 3 */}
-                            <div className="bg-white p-6 shadow-sm ring-1 ring-slate-200 rounded-2xl">
-                                <h3 className="text-lg font-bold text-slate-800 mb-4">Logo Institusi</h3>
+                            {/* CARD LOGO */}
+                            <div className="bg-[#18181b] p-6 rounded-2xl border border-zinc-800 shadow-xl">
+                                <h3 className="text-lg font-bold text-white mb-4">Logo Institusi</h3>
                                 
                                 <div className="mb-4">
-                                    <InputLabel htmlFor="logo_position" value="Posisi Logo" className="mb-1" />
-                                    <SelectInput
-                                        id="logo_position"
-                                        name="logo_position"
+                                    <label className="block text-sm font-medium text-zinc-400 mb-1.5">Posisi Logo</label>
+                                    <select
                                         value={data.logo_position}
-                                        className="block w-full rounded-xl border-slate-300"
-                                        onChange={handleInputChange}
+                                        onChange={(e) => setData('logo_position', e.target.value)}
+                                        className="w-full rounded-xl bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
                                     >
                                         <option value="tengah">Tengah (Center)</option>
                                         <option value="kiri">Kiri (Left)</option>
                                         <option value="kanan">Kanan (Right)</option>
-                                    </SelectInput>
+                                    </select>
                                 </div>
 
+                                {/* Custom File Input Styled */}
                                 <div className="mt-2">
-                                    <FilePond
-                                        files={files}
-                                        onupdatefiles={fileItems => {
-                                            setFiles(fileItems.map(fileItem => fileItem.file));
-                                            const file = fileItems.length > 0 ? fileItems[0].file : null;
-                                            if (data.logo !== file) {
-                                                setData('logo', file);
-                                            }
-                                        }}
-                                        allowMultiple={false}
-                                        maxFiles={1}
-                                        name="logo"
-                                        labelIdle='Drag & Drop logo atau <span class="filepond--label-action">Cari</span>'
-                                        storeAsFile={true}
-                                        credits={false} 
-                                        allowImagePreview={true}
-                                        imagePreviewHeight={170}
-                                        stylePanelLayout='integrated'
-                                        imagePreviewMarkupShow={true}
-                                    />
-                                    <InputError message={errors.logo} className="mt-2" />
+                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-700 border-dashed rounded-xl cursor-pointer bg-zinc-900/50 hover:bg-zinc-800 hover:border-indigo-500 transition-all group">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <Icons.Upload />
+                                            <p className="mb-2 text-sm text-zinc-400 group-hover:text-white transition-colors">
+                                                <span className="font-semibold">Klik upload</span> atau drag & drop
+                                            </p>
+                                            <p className="text-xs text-zinc-500">PNG, JPG (Max. 2MB)</p>
+                                        </div>
+                                        <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={(e) => setData('logo', e.target.files[0])}
+                                        />
+                                    </label>
+                                    {data.logo && (
+                                        <p className="mt-2 text-xs text-emerald-400 font-medium text-center">
+                                            File terpilih: {data.logo.name}
+                                        </p>
+                                    )}
+                                    {errors.logo && <div className="text-red-500 text-xs mt-1">{errors.logo}</div>}
                                 </div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="bg-white p-6 shadow-xl shadow-slate-200 ring-1 ring-slate-200 rounded-2xl lg:sticky lg:top-8">
-                                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-4">Aksi</h3>
+                            {/* CARD AKSI */}
+                            <div className="bg-[#18181b] p-6 shadow-xl border border-zinc-800 rounded-2xl lg:sticky lg:top-24">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Aksi</h3>
                                 
                                 <div className="space-y-3">
+                                    {/* TOMBOL PREVIEW (SEKARANG BERFUNGSI) */}
                                     <button
                                         type="button"
-                                        onClick={handlePreview}
-                                        disabled={previewLoading || processing}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-400 focus:ring-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
+                                        onClick={() => setShowPreview(true)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-800 border border-zinc-700 text-zinc-300 font-bold rounded-xl hover:bg-zinc-700 hover:text-white hover:border-zinc-600 transition-all"
                                     >
-                                        {previewLoading ? (
-                                            <span className="animate-pulse">Loading...</span>
-                                        ) : (
+                                        <Icons.Eye /> Pratinjau Cover
+                                    </button>
+                                    
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+                                    >
+                                        {processing ? 'Menyimpan...' : (
                                             <>
-                                                <span>👁️</span> Pratinjau Cover
+                                                <Icons.Save /> Simpan & Lanjut
                                             </>
                                         )}
                                     </button>
-
-                                    <PrimaryButton
-                                        disabled={processing || previewLoading}
-                                        className="w-full justify-center py-3 text-base font-bold rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 shadow-lg shadow-indigo-200"
-                                    >
-                                        {processing ? 'Menyimpan...' : '💾 Simpan & Lanjut'}
-                                    </PrimaryButton>
                                 </div>
-                                <p className="text-xs text-center text-slate-400 mt-4">
+                                
+                                <p className="text-xs text-center text-zinc-500 mt-4">
                                     Laporan akan tersimpan di draft setelah tombol simpan ditekan.
                                 </p>
                             </div>
-
                         </div>
                     </form>
                 </div>
             </div>
-
-            {/* PREVIEW MODAL */}
-            {showPreviewModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog">
-                    <div 
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
-                        onClick={() => setShowPreviewModal(false)}
-                    />
-                    <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[85vh] transform transition-all animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-white">
-                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                📄 Pratinjau Cover
-                            </h3>
-                            <button
-                                onClick={() => setShowPreviewModal(false)}
-                                className="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                        </div>
-                        
-                        <div className="flex-1 bg-slate-100 p-4 overflow-hidden">
-                            {previewUrl ? (
-                                <iframe
-                                    src={previewUrl}
-                                    title="Preview"
-                                    className="w-full h-full rounded-lg shadow-sm bg-white"
-                                />
-                            ) : (
-                                <div className="flex h-full items-center justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div className="p-4 bg-white border-t border-slate-100 text-right">
-                             <button
-                                onClick={() => setShowPreviewModal(false)}
-                                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
-                            >
-                                Tutup Preview
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </AuthenticatedLayout>
     );
-};
-
-export default Create;
+}

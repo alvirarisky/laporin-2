@@ -24,299 +24,108 @@ class GameController extends Controller
 
     public function show(Game $game)
     {
-        $game->load([
-            'levels',
-            'topic.major',
-        ]);
-
+        $game->load(['levels', 'topic.major']);
+        
         $progressCollection = $game->progresses()
             ->where('user_id', Auth::id())
             ->get()
             ->keyBy('level_id')
-            ->map(fn (GameProgress $progress) => [
-                'level_id' => $progress->level_id,
-                'status' => $progress->status,
-                'score' => $progress->score,
-                'updated_at' => $progress->updated_at,
-            ]);
-
-        $progressPayload = $progressCollection->toArray();
-
-        $startLevelIndex = $this->resolveStartingLevelIndex($game->levels, $progressCollection);
+            ->map(fn ($p) => ['status' => $p->status, 'score' => $p->score]);
 
         return Inertia::render('Questify/Game', [
             'game' => $game,
-            'startLevelIndex' => $startLevelIndex,
-            'progress' => $progressPayload,
+            'startLevelIndex' => $this->resolveStartingLevelIndex($game->levels, $progressCollection),
+            'progress' => $progressCollection,
         ]);
     }
 
-    /**
-     * API endpoint untuk mengambil level berdasarkan ID Game.
-     * Tidak perlu jika 'show' sudah load 'levels'.
-     */
-    // public function getLevels(Game $game)
-    // {
-    //     return response()->json($game->levels);
-    // }
-
     public function checkAnswer(Request $request)
     {
-        // Validasi input dasar
         $validated = $request->validate([
             'level_id' => 'required|exists:game_levels,id',
             'user_answer' => 'required|string',
         ]);
 
-        // Sanitasi input dasar
-        $levelId = (int) $validated['level_id'];
-        $rawAnswer = trim($validated['user_answer']);
-
-        // Cari level dan game
-        $level = GameLevel::findOrFail($levelId);
-        $game = $level->game()->firstOrFail();
-
-        // Tentukan jawaban yang benar
-        $correctAnswer = $level->target_answer ?? $level->solution;
+        $level = GameLevel::findOrFail($validated['level_id']);
+        $game = $level->game;
+        
+        // AMBIL JAWABAN YANG BENAR (TARGET ANSWER DIPRIORITASKAN UNTUK MATH/LOGIC)
+        $correctAnswer = $level->target_answer ?? $level->correct_answer;
+        $userAnswer = trim($validated['user_answer']);
         $isCorrect = false;
-        $message = 'Masih ada yang salah, koreksi lagi ya!';
 
-        // Logic pengecekan berdasarkan game_type
         switch ($game->game_type) {
             case 'math':
             case 'logic':
-                // Math/Logic: Bandingkan sebagai angka jika memungkinkan, atau case-insensitive string
-                $isCorrect = $this->compareMathLogic($rawAnswer, $correctAnswer);
+                $isCorrect = $this->compareMathLogic($userAnswer, $correctAnswer);
                 break;
             case 'css':
-                // CSS: Hapus spasi berlebih, normalisasi sekitar tanda baca, abaikan semicolon di akhir
+                // CSS fleksibel: cek target CSS atau full syntax
                 if ($level->target_css) {
-                    $isCorrect = $this->normalizeCss($rawAnswer) === $this->normalizeCss($level->target_css) ||
-                                 $this->normalizeCss($rawAnswer) === $this->normalizeCss($level->solution);
+                     $isCorrect = $this->normalizeCss($userAnswer) === $this->normalizeCss($level->target_css) || 
+                                  $this->normalizeCss($userAnswer) === $this->normalizeCss($level->correct_answer);
                 } else {
-                $isCorrect = $this->normalizeCss($rawAnswer) === $this->normalizeCss($level->solution);
+                     $isCorrect = $this->normalizeCss($userAnswer) === $this->normalizeCss($level->correct_answer);
                 }
                 break;
             case 'sql':
-                // SQL: Hapus spasi berlebih, normalisasi sekitar tanda baca, abaikan semicolon di akhir
-                $isCorrect = $this->validateSqlAnswer($rawAnswer, $level->solution);
+                $isCorrect = $this->validateSqlAnswer($userAnswer, $level->correct_answer);
                 break;
             default:
-                // Quiz type - case-insensitive, trimmed comparison
-                $isCorrect = $this->normalizeSimple($rawAnswer) === $this->normalizeSimple($correctAnswer);
-                break;
+                $isCorrect = strtolower(trim($userAnswer)) === strtolower(trim($correctAnswer));
         }
 
-        // Response dan penyimpanan progress
-        if ($isCorrect) {
-            $message = 'Jawaban kamu tepat! 🎉';
-            // Simpan progress jika benar
-            $this->saveProgress($game->id, $level->id, 'completed');
-        } else {
-            $this->saveProgress($game->id, $level->id, 'failed');
-        }
+        // SIMPAN PROGRESS
+        $status = $isCorrect ? 'completed' : 'failed';
+        GameProgress::updateOrCreate(
+            ['user_id' => Auth::id(), 'game_id' => $game->id, 'level_id' => $level->id],
+            ['status' => $status, 'score' => $isCorrect ? 10 : 0]
+        );
 
         return response()->json([
             'success' => $isCorrect,
-            'message' => $message,
-            'correct_answer' => $isCorrect ? null : $correctAnswer, // Hanya tampilkan jika salah
+            'message' => $isCorrect ? 'Jawaban Benar! 🎉' : 'Kurang tepat, coba cek hint.',
+            'correct_answer' => $isCorrect ? null : null // Jangan kasih kunci jawaban kalau salah
         ]);
     }
 
-    private function saveProgress($gameId, $levelId, $status)
+    // --- HELPER FUNCTIONS ---
+
+    private function resolveStartingLevelIndex($levels, $progress)
     {
-        GameProgress::updateOrCreate(
-            [
-                'user_id' => Auth::id(),
-                'game_id' => $gameId,
-                'level_id' => $levelId,
-            ],
-            [
-                'status' => $status,
-                'score' => $status === 'completed' ? 10 : 0,
-            ]
-        );
-    }
-
-    public function storeProgress(Request $request)
-    {
-        $validated = $request->validate([
-            'game_id' => 'required|exists:games,id',
-            'level_id' => 'required|exists:game_levels,id',
-            'status' => 'required|in:completed,failed',
-        ]);
-
-        $userId = Auth::id();
-        $level = GameLevel::where('id', $validated['level_id'])
-            ->where('game_id', $validated['game_id'])
-            ->firstOrFail();
-
-        $progress = GameProgress::updateOrCreate(
-            [
-                'user_id' => $userId,
-                'game_id' => $validated['game_id'],
-                'level_id' => $validated['level_id'],
-            ],
-            [
-                'status' => $validated['status'],
-                'score' => $validated['status'] === 'completed' ? 10 : 0,
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Progres tersimpan!',
-            'progress' => $progress,
-        ]);
-    }
-
-    private function resolveStartingLevelIndex(Collection $levels, Collection $progressCollection): int
-    {
-        if ($levels->isEmpty()) {
-            return 0;
-        }
-
         foreach ($levels as $index => $level) {
-            $currentProgress = $progressCollection->get($level->id);
-            if (!$currentProgress || $currentProgress['status'] !== 'completed') {
-                return $index;
-            }
+            if (!isset($progress[$level->id]) || $progress[$level->id]['status'] !== 'completed') return $index;
         }
-
-        return max($levels->count() - 1, 0);
+        return count($levels) > 0 ? count($levels) - 1 : 0;
     }
 
-    private function normalizeCss(string $answer): string
-    {
-        // Trim spasi di awal/akhir
-        $trimmed = trim($answer);
-        
-        // Convert to lowercase
-        $lower = mb_strtolower($trimmed, 'UTF-8');
-        
-        // Hapus semua spasi berlebih (multiple spaces menjadi single space)
-        $singleSpace = preg_replace('/\s+/', ' ', $lower);
-        
-        // Hapus spasi di sekitar tanda baca penting ( : menjadi :, ; menjadi ;)
-        $noSpacesAroundSymbols = preg_replace('/\s*([:;])\s*/', '$1', $singleSpace);
-        
-        // Abaikan tanda titik koma (;) di akhir string
-        $normalized = rtrim($noSpacesAroundSymbols, ';');
-        
-        return trim($normalized);
+    private function normalizeCss($str) {
+        $str = preg_replace('/\s+/', ' ', strtolower(trim($str))); // Hapus spasi ganda & lowercase
+        $str = preg_replace('/\s*([:;])\s*/', '$1', $str); // Hapus spasi sekitar : dan ;
+        return trim($str, ';'); // Hapus ; di akhir
     }
 
-    private function normalizeCssFlexible(string $answer): string
-    {
-        // More flexible CSS normalization - handles multiple properties
-        $trimmed = trim($answer);
-        $lower = mb_strtolower($trimmed, 'UTF-8');
-        
-        // Split by semicolon and normalize each property
-        $properties = array_filter(array_map('trim', explode(';', $lower)));
-        $normalizedProps = [];
-        
-        foreach ($properties as $prop) {
-            if (empty($prop)) continue;
-            // Remove spaces around colon
-            $prop = preg_replace('/\s*:\s*/', ':', trim($prop));
-            $normalizedProps[] = $prop;
-        }
-        
-        // Sort properties for consistent comparison (optional, but helps)
-        sort($normalizedProps);
-        
-        return implode(';', $normalizedProps);
+    private function normalizeSql($str) {
+        $str = preg_replace('/\s+/', ' ', strtolower(trim($str)));
+        $str = preg_replace('/\s*([,;()])\s*/', '$1', $str);
+        return trim($str, ';');
     }
 
-    private function normalizeSimple(string $answer): string
-    {
-        $lower = mb_strtolower($answer, 'UTF-8');
-        return trim(preg_replace('/\s+/', ' ', $lower));
+    private function validateSqlAnswer($user, $correct) {
+        // Cek keyword wajib ada
+        if (!str_contains(strtolower($user), 'select') || !str_contains(strtolower($user), 'from')) return false;
+        return $this->normalizeSql($user) === $this->normalizeSql($correct);
     }
 
-    private function normalizeSql(string $answer): string
-    {
-        // Trim spasi di awal/akhir
-        $trimmed = trim($answer);
+    private function compareMathLogic($user, $correct) {
+        $userNum = floatval(preg_replace('/[^0-9.]/', '', $user));
+        $correctNum = floatval(preg_replace('/[^0-9.]/', '', $correct));
         
-        // Convert to lowercase
-        $lower = mb_strtolower($trimmed, 'UTF-8');
-        
-        // Hapus semua spasi berlebih (multiple spaces menjadi single space)
-        $singleSpace = preg_replace('/\s+/', ' ', $lower);
-        
-        // Hapus spasi di sekitar tanda baca penting (tetap pertahankan spasi antar keyword)
-        $normalized = preg_replace('/\s*([,;()])\s*/', '$1', $singleSpace);
-        
-        // Abaikan tanda titik koma (;) di akhir string
-        $normalized = rtrim($normalized, ';');
-        
-        return trim($normalized);
-    }
-
-    private function validateSqlAnswer(string $answer, ?string $solution): bool
-    {
-        if (!$solution) {
-            return false;
+        // Kalau keduanya angka valid, bandingkan nilai (biar 5 == 5.0)
+        if (is_numeric($user) && is_numeric($correct)) {
+            return abs($userNum - $correctNum) < 0.0001;
         }
-
-        $normalizedAnswer = $this->normalizeSql($answer);
-        $normalizedSolution = $this->normalizeSql($solution);
-        
-        // Check if answer contains essential SQL keywords
-        $hasSelect = str_contains($normalizedAnswer, 'select');
-        $hasFrom = str_contains($normalizedAnswer, 'from');
-
-        if (!$hasSelect || !$hasFrom) {
-            return false;
-        }
-
-        // Compare normalized versions
-        return $normalizedAnswer === $normalizedSolution;
-    }
-
-    private function compareMathLogic(?string $answer, ?string $target): bool
-    {
-        if ($answer === null || $target === null) {
-            return false;
-        }
-
-        // Trim and normalize both (remove extra whitespace)
-        $normalizedAnswer = trim(preg_replace('/\s+/', ' ', $answer));
-        $normalizedTarget = trim(preg_replace('/\s+/', ' ', $target));
-
-        // Try numeric comparison first (flexible: "5" == "5.0" == "5.00")
-        $answerNumeric = $this->toNumeric($normalizedAnswer);
-        $targetNumeric = $this->toNumeric($normalizedTarget);
-
-        if ($answerNumeric !== null && $targetNumeric !== null) {
-            // Use small epsilon for floating point comparison
-            return abs($answerNumeric - $targetNumeric) < 0.00001;
-        }
-
-        // Fallback to case-insensitive string comparison
-        $answerLower = mb_strtolower($normalizedAnswer, 'UTF-8');
-        $targetLower = mb_strtolower($normalizedTarget, 'UTF-8');
-        
-        return $answerLower === $targetLower;
-    }
-
-    private function toNumeric(string $value): ?float
-    {
-        // Remove any whitespace
-        $trimmed = trim($value);
-        
-        // Replace comma with dot (for decimal separator)
-        $sanitized = str_replace(',', '.', $trimmed);
-        
-        // Remove any non-numeric characters except minus, dot, and e/E (for scientific notation)
-        $cleaned = preg_replace('/[^0-9.\-eE]/', '', $sanitized);
-        
-        if (is_numeric($cleaned)) {
-            return (float) $cleaned;
-        }
-
-        return null;
+        // Kalau string, bandingkan string
+        return strtolower(trim($user)) === strtolower(trim($correct));
     }
 }

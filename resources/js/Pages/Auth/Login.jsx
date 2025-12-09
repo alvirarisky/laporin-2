@@ -29,22 +29,23 @@ export default function Login({ status, canResetPassword }) {
         <GuestLayout>
             <Head title="Masuk ke Laporin" />
 
-            <div className="mb-6 text-center">
-                <h2 className="text-2xl font-bold text-white">Selamat Datang Kembali</h2>
-                <p className="text-zinc-400 text-sm mt-1">Lanjutkan progres skripsimu yang tertunda.</p>
+            <div className="mb-8 text-center">
+                <h2 className="text-2xl font-bold text-white tracking-tight">Selamat Datang Kembali</h2>
+                <p className="text-zinc-400 text-sm mt-2">Lanjutkan progres skripsimu yang tertunda.</p>
             </div>
 
-            {status && <div className="mb-4 font-medium text-sm text-green-400">{status}</div>}
+            {status && <div className="mb-4 font-medium text-sm text-emerald-400 bg-emerald-500/10 p-3 rounded border border-emerald-500/20">{status}</div>}
 
             <form onSubmit={submit} className="space-y-5">
                 <div>
-                    <InputLabel htmlFor="email" value="Email Kampus / Pribadi" className="text-zinc-300" />
+                    <InputLabel htmlFor="email" value="Email Kampus / Pribadi" className="text-zinc-300 font-medium" />
                     <TextInput
                         id="email"
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1 block w-full bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 rounded-lg placeholder-zinc-600"
+                        // STYLE: Dark Input
+                        className="mt-1 block w-full bg-zinc-900/80 border-white/10 text-white focus:border-indigo-500 focus:ring-indigo-500/50 rounded-lg placeholder-zinc-600 transition-all"
                         placeholder="nama@mahasiswa.ac.id"
                         autoComplete="username"
                         isFocused={true}
@@ -54,13 +55,13 @@ export default function Login({ status, canResetPassword }) {
                 </div>
 
                 <div>
-                    <InputLabel htmlFor="password" value="Password" className="text-zinc-300" />
+                    <InputLabel htmlFor="password" value="Password" className="text-zinc-300 font-medium" />
                     <TextInput
                         id="password"
                         type="password"
                         name="password"
                         value={data.password}
-                        className="mt-1 block w-full bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 rounded-lg placeholder-zinc-600"
+                        className="mt-1 block w-full bg-zinc-900/80 border-white/10 text-white focus:border-indigo-500 focus:ring-indigo-500/50 rounded-lg placeholder-zinc-600 transition-all"
                         placeholder="••••••••"
                         autoComplete="current-password"
                         onChange={(e) => setData('password', e.target.value)}
@@ -69,29 +70,29 @@ export default function Login({ status, canResetPassword }) {
                 </div>
 
                 <div className="block mt-4 flex items-center justify-between">
-                    <label className="flex items-center">
+                    <label className="flex items-center cursor-pointer">
                         <Checkbox 
                             name="remember" 
                             checked={data.remember} 
                             onChange={(e) => setData('remember', e.target.checked)} 
-                            className="bg-zinc-900 border-zinc-700 text-indigo-600 focus:ring-indigo-500"
+                            className="bg-zinc-900 border-zinc-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900 rounded"
                         />
-                        <span className="ms-2 text-sm text-zinc-400">Ingat Saya</span>
+                        <span className="ms-2 text-sm text-zinc-400 select-none">Ingat Saya</span>
                     </label>
 
                     {canResetPassword && (
                         <Link
                             href={route('password.request')}
-                            className="text-sm text-indigo-400 hover:text-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-zinc-900"
+                            className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors hover:underline"
                         >
                             Lupa Password?
                         </Link>
                     )}
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-8">
                     <PrimaryButton 
-                        className="w-full justify-center py-3 bg-indigo-600 hover:bg-indigo-500 focus:bg-indigo-500 active:bg-indigo-700 text-white font-bold rounded-lg transition-all" 
+                        className="w-full justify-center py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all hover:scale-[1.02]" 
                         disabled={processing}
                     >
                         {processing ? 'Memproses...' : 'Masuk Sekarang'}
