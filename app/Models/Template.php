@@ -9,8 +9,7 @@ class Template extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'name', 'filepath'];
-
+    protected $fillable = ['user_id', 'name', 'filepath', 'is_public', 'description'];
     public function user()
     {
         return $this->belongsTo(User::class);

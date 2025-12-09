@@ -3,26 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\Laporan;
+use App\Models\Template; // ✅ Tambah Model Template
 use Spatie\Browsershot\Browsershot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\File;
-
-// --- KITA PAKAI DUA-DUANYA ---
-use Inertia\Inertia; // Untuk Inertia
-use PhpOffice\PhpWord\IOFactory; // Untuk DOCX
-use PhpOffice\PhpWord\PhpWord; // Untuk DOCX
-use PhpOffice\PhpWord\Shared\Converter; // Untuk DOCX
-use PhpOffice\PhpWord\Shared\Html; // Untuk DOCX (meski pakai addText)
-// Untuk DOCX
-use PhpOffice\PhpWord\Style\Language; // Untuk DOCX
+use Inertia\Inertia;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\Shared\Converter;
+use PhpOffice\PhpWord\Style\Language;
+use App\Traits\ParsesWordDocument; // ✅ Tambah Trait Parser
 
 class LaporanController extends Controller
 {
-    // Method index, create, store, edit, destroy, previewLive, preview
-    // (Tidak ada perubahan di method-method ini)
+    use ParsesWordDocument; // ✅ Gunakan Trait di sini
 
     public function index()
     {
@@ -39,9 +36,16 @@ class LaporanController extends Controller
         $reportType = $request->query('type', 'Makalah');
         $reportTypes = ['Makalah', 'Proposal', 'Laporan Praktikum', 'Studi Kasus', 'Skripsi'];
 
+        // ✅ LOGIC BARU: Tangkap Template ID dari URL
+        $selectedTemplate = null;
+        if ($request->has('template_id')) {
+            $selectedTemplate = Template::find($request->template_id);
+        }
+
         return Inertia::render('Laporan/Create', [
             'report_type' => $reportType,
             'report_types' => $reportTypes,
+            'selectedTemplate' => $selectedTemplate, // ✅ Kirim ke frontend
         ]);
     }
 
@@ -60,6 +64,7 @@ class LaporanController extends Controller
             'tahun_ajaran' => 'required|string|max:10',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'logo_position' => 'required|in:kiri,tengah,kanan',
+            'template_id' => 'nullable|exists:templates,id', // ✅ Validasi Template ID
         ]);
 
         $logoPath = null;
@@ -67,6 +72,7 @@ class LaporanController extends Controller
             $logoPath = $request->file('logo')->store('logos', 'public');
         }
 
+        // Siapkan data untuk create
         $reportData = array_merge(
             $validated,
             [
@@ -74,21 +80,45 @@ class LaporanController extends Controller
                 'logo_path' => $logoPath,
             ]
         );
-        unset($reportData['logo']);
+        
+        // Hapus template_id dari array karena tidak disimpan di tabel laporans
+        unset($reportData['logo'], $reportData['template_id']);
 
+        // 1. Buat Record Laporan
         $laporan = Laporan::create($reportData);
 
-        // Buat section default berdasarkan report_type
-        $this->createDefaultSections($laporan, $laporan->report_type);
+        // 2. ✅ LOGIC BARU: Generate Section (Template vs Default)
+        if ($request->filled('template_id')) {
+            // Jika user pilih template, gunakan Trait Parser
+            $template = Template::find($request->template_id);
+            
+            if ($template && Storage::disk('public')->exists($template->filepath)) {
+                try {
+                    $filePath = Storage::disk('public')->path($template->filepath);
+                    // Panggil fungsi sakti dari Trait
+                    $this->parseAndSaveSections($filePath, $laporan);
+                } catch (\Exception $e) {
+                    // Jika gagal parsing, kembalikan dengan error tapi laporan sudah terbuat
+                    return redirect()->route('laporan.edit', $laporan->id)
+                        ->with('error', 'Laporan dibuat tapi gagal membaca template: ' . $e->getMessage());
+                }
+            } else {
+                // Fallback jika file template hilang fisik
+                $this->createDefaultSections($laporan, $laporan->report_type);
+            }
+        } else {
+            // Jika tidak pakai template, pakai default hardcoded
+            $this->createDefaultSections($laporan, $laporan->report_type);
+        }
 
-        return redirect()->route('laporan.edit', $laporan->id)->with('success', 'Data laporan berhasil dibuat! Silakan mulai mengisi konten.');
+        return redirect()->route('laporan.edit', $laporan->id)
+            ->with('success', 'Data laporan berhasil dibuat! Struktur bab telah disesuaikan.');
     }
 
     public function edit(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
 
-        // Load sections dengan children (nested structure)
         $laporan->load(['sections' => function ($query) {
             $query->orderBy('order');
         }, 'sections.children' => function ($query) {
@@ -138,21 +168,17 @@ class LaporanController extends Controller
         return view('reports.preview', $previewData);
     }
 
-    // --- METHOD DOWNLOAD PDF (FINAL VERSION) ---
     public function downloadPdf(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
 
         try {
-            // 1. Load Data Lengkap
             $laporan->load(['sections' => function ($query) {
                 $query->orderBy('order');
             }, 'sections.children' => function ($query) {
                 $query->orderBy('order');
             }]);
 
-            // 2. CONVERT SEMUA GAMBAR JADI BASE64 (Biar Nongol di PDF)
-            // Kita proses konten HTML-nya sebelum dikirim ke view
             foreach ($laporan->sections as $section) {
                 if (!empty($section->content)) {
                     $section->content = $this->convertImagesToBase64($section->content);
@@ -164,7 +190,6 @@ class LaporanController extends Controller
                 }
             }
 
-            // 3. Ambil CSS Tailwind (Biar Tampilan Ganteng)
             $cssPath = public_path('build/assets');
             $cssContent = '';
             if (File::exists($cssPath)) {
@@ -176,15 +201,12 @@ class LaporanController extends Controller
                 }
             }
 
-            // 4. Render HTML
             $html = View::make('reports.preview', [
                 'laporan' => $laporan,
                 'css_inline' => $cssContent,
-                'is_pdf_mode' => true // Penanda buat view
+                'is_pdf_mode' => true 
             ])->render();
 
-            // 5. Setup Footer (Nomor Halaman)
-            // "pageNumber" adalah class ajaib dari Browsershot
             $footerHtml = '
                 <div style="font-size: 10px; text-align: right; width: 100%; padding-right: 2cm; font-family: Times New Roman;">
                     Halaman <span class="pageNumber"></span> dari <span class="totalPages"></span>
@@ -192,18 +214,16 @@ class LaporanController extends Controller
 
             $filename = 'laporan-' . \Illuminate\Support\Str::slug($laporan->judul) . '.pdf';
 
-            // 6. Generate PDF
             return response()->streamDownload(function () use ($html, $footerHtml) {
                 echo Browsershot::html($html)
                     ->format('A4')
-                    // Margin kita set ada "bawah" agak lega buat footer
                     ->margins(25, 25, 30, 25, 'mm')
                     ->showBackground()
-                    ->hideBrowserHeaderAndFooter() // Hapus header bawaan Chrome
+                    ->hideBrowserHeaderAndFooter()
                     ->options([
-                        'displayHeaderFooter' => true, // Aktifin Header/Footer Custom
-                        'footerTemplate' => $footerHtml, // Pasang Footer Kita
-                        'headerTemplate' => '<div></div>' // Header kosong
+                        'displayHeaderFooter' => true,
+                        'footerTemplate' => $footerHtml,
+                        'headerTemplate' => '<div></div>'
                     ])
                     ->waitUntilNetworkIdle()
                     ->pdf();
@@ -216,17 +236,11 @@ class LaporanController extends Controller
         }
     }
 
-    // --- HELPER BARU: GAMBAR JADI BASE64 (ANTI GAGAL) ---
     private function convertImagesToBase64($html)
     {
-        // Cari semua tag <img>
         return preg_replace_callback('/<img[^>]+src="([^">]+)"/', function ($matches) {
             $src = $matches[1];
-
-            // Cek apakah ini gambar lokal (bukan http/https luar)
-            // Asumsi URL gambar lu formatnya: http://localhost/storage/uploads/gambar.jpg
             if (strpos($src, 'storage/') !== false) {
-                // Ambil path relatif setelah 'storage/'
                 $relativePath = substr($src, strpos($src, 'storage/') + 8);
                 $fullPath = storage_path('app/public/' . $relativePath);
 
@@ -234,41 +248,33 @@ class LaporanController extends Controller
                     $type = pathinfo($fullPath, PATHINFO_EXTENSION);
                     $data = file_get_contents($fullPath);
                     $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-
-                    // Ganti src lama dengan base64
                     return str_replace($src, $base64, $matches[0]);
                 }
             }
-            return $matches[0]; // Kalau gak ketemu, balikin aslinya
+            return $matches[0];
         }, $html);
     }
 
-    // --- METHOD 2: DOWNLOAD DOCX (TEKS POLOSAN, TAPI AMAN DARI CRASH/KORUP) ---
     public function downloadDocx(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
 
-        // Bersihkan output buffer (penting untuk download file)
         if (ob_get_level() > 0) {
             ob_end_clean();
         }
         ob_start();
 
         try {
-            // Inisialisasi PhpWord
             $phpWord = new PhpWord;
             $phpWord->getSettings()->setThemeFontLang(new Language(Language::EN_US));
 
-            // Style global
             $centerStyle = ['align' => 'center'];
             $boldUpper = ['bold' => true, 'allCaps' => true];
 
-            // Style Judul Bab (Heading 1) untuk Daftar Isi
             $phpWord->addTitleStyle(1, ['size' => 14, 'bold' => true], ['spaceBefore' => Converter::cmToTwip(0.8), 'spaceAfter' => Converter::cmToTwip(0.5), 'keepNext' => true]);
-            // Style Judul "DAFTAR ISI" (Heading 0)
             $phpWord->addTitleStyle(0, ['size' => 16, 'bold' => true], ['spaceAfter' => Converter::cmToTwip(0.8), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
 
-            // === SECTION 1: COVER === (Sama seperti sebelumnya)
+            // SECTION 1: COVER
             $coverSection = $phpWord->addSection([
                 'marginTop' => Converter::cmToTwip(3),
                 'marginBottom' => Converter::cmToTwip(3),
@@ -276,7 +282,6 @@ class LaporanController extends Controller
                 'marginRight' => Converter::cmToTwip(3),
             ]);
 
-            // Style paragraf dengan spaceAfter untuk spacing yang lebih baik
             $paraStyleCenter = ['align' => 'center', 'spaceAfter' => Converter::cmToTwip(0.5)];
             $paraStyleCenterLarge = ['align' => 'center', 'spaceAfter' => Converter::cmToTwip(1)];
 
@@ -298,7 +303,7 @@ class LaporanController extends Controller
             $coverSection->addText(htmlspecialchars($laporan->tahun_ajaran), $boldUpper, ['align' => 'center', 'spaceAfter' => 0]);
             $coverSection->addPageBreak();
 
-            // === SECTION 2: DAFTAR ISI === (Sama seperti sebelumnya)
+            // SECTION 2: DAFTAR ISI
             $tocSection = $phpWord->addSection([
                 'marginTop' => Converter::cmToTwip(3),
                 'marginBottom' => Converter::cmToTwip(3),
@@ -308,11 +313,11 @@ class LaporanController extends Controller
             $tocSection->addTitle('DAFTAR ISI', 0);
             $tocSection->addTextBreak(1);
             $fontStyle = ['size' => 12];
-            $tocStyle = ['tabLeader' => 'dot']; // String 'dot' aman
+            $tocStyle = ['tabLeader' => 'dot']; 
             $tocSection->addTOC($fontStyle, $tocStyle);
             $tocSection->addPageBreak();
 
-            // === SECTION 3: KONTEN LAPORAN (MODE TEKS POLOS) ===
+            // SECTION 3: KONTEN
             $laporan->load('sections');
 
             if ($laporan->sections->isNotEmpty()) {
@@ -323,94 +328,69 @@ class LaporanController extends Controller
                     'marginRight' => Converter::cmToTwip(3),
                 ]);
 
-                // Style paragraf standar
                 $fontStyle = ['size' => 12];
-                $paraStyle = ['spaceAfter' => 120]; // spasi 6pt setelah paragraf
+                $paraStyle = ['spaceAfter' => 120]; 
 
                 foreach ($laporan->sections as $section) {
                     $contentSection->addTitle(htmlspecialchars(strtoupper($section->title)), 1);
 
-                    // --- INI KODENYA: KONVERSI KE TEKS POLOS (AMAN) ---
                     if (! empty($section->content)) {
-
                         $html = $section->content;
-
-                        // Ganti tag block-level (paragraf, br, list) dengan newline
                         $html = preg_replace('/(<\/p>|<br\s*?\/?>|<li>)/i', "\n", $html);
-                        // Strip semua tag yang tersisa (bold, italic, dll HILANG)
                         $plainText = strip_tags($html);
-                        // Decode sisa HTML entities (kayak &nbsp; &amp;)
                         $plainText = html_entity_decode($plainText, ENT_QUOTES, 'UTF-8');
-
-                        // Bersihkan spasi & newline berlebih
-                        $plainText = preg_replace('/[ \t]+/', ' ', $plainText); // Ganti spasi duplikat
-                        $plainText = preg_replace('/(\n\s*){2,}/', "\n\n", $plainText); // Ganti newline duplikat jadi 1 baris kosong
+                        $plainText = preg_replace('/[ \t]+/', ' ', $plainText);
+                        $plainText = preg_replace('/(\n\s*){2,}/', "\n\n", $plainText); 
                         $plainText = trim($plainText);
 
-                        // Pecah jadi beberapa baris berdasarkan newline
                         $lines = explode("\n", $plainText);
 
                         if (! empty($lines)) {
                             foreach ($lines as $line) {
-                                // Escape karakter khusus XML (&, <, >) untuk PhpWord
                                 $safeLine = htmlspecialchars($line, ENT_COMPAT, 'UTF-8', false);
-
                                 if (trim($safeLine) !== '') {
-                                    // Tambahkan teks sebagai paragraf ke Word
                                     $contentSection->addText($safeLine, $fontStyle, $paraStyle);
                                 } else {
-                                    // Jika baris kosong (hasil dari <p></p> atau \n\n), tambahkan spasi
                                     $contentSection->addTextBreak(1);
                                 }
                             }
                         } else {
-                            // Jika setelah dibersihkan jadi benar-benar kosong
                             $contentSection->addTextBreak(1);
                         }
                     } else {
-                        $contentSection->addTextBreak(1); // Section kosong dari awal
+                        $contentSection->addTextBreak(1); 
                     }
-                    // --- BATAS PERBAIKAN ---
                 }
             }
 
-            // Nama file download
             $filename = 'laporan-' . \Illuminate\Support\Str::slug($laporan->judul) . '.docx';
 
-            // Hapus buffer sebelum kirim header
             ob_end_clean();
 
-            // Set header untuk download DOCX
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
             header('Content-Disposition: attachment;filename="' . $filename . '"');
             header('Cache-Control: max-age=0');
 
-            // Simpan ke output
             $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
             $objWriter->save('php://output');
             exit;
         } catch (\Exception $e) {
-            // Tangani error jika PhpWord gagal
             ob_end_clean();
             report($e);
-
-            return redirect()->back()->with('error', 'Gagal membuat file DOCX: ' . $e->getMessage() . ' (File: ' . basename($e->getFile()) . ' Baris: ' . $e->getLine() . ')');
+            return redirect()->back()->with('error', 'Gagal membuat file DOCX: ' . $e->getMessage());
         }
     }
 
-    // Preview dari Database
     public function preview(Laporan $laporan)
     {
         $this->authorize('update', $laporan);
 
-        // Load sections dengan children dan urutkan
         $laporan->load(['sections' => function ($query) {
             $query->orderBy('order');
         }, 'sections.children' => function ($query) {
             $query->orderBy('order');
         }]);
 
-        // Process images in content to add figure/figcaption wrappers for better PDF rendering
         foreach ($laporan->sections as $section) {
             if (!empty($section->content)) {
                 $section->content = $this->processImagesForPdf($section->content);
@@ -425,14 +405,9 @@ class LaporanController extends Controller
         return view('reports.preview', ['laporan' => $laporan]);
     }
 
-    /**
-     * Helper: Process images in HTML content to convert to absolute URLs and add figure/figcaption wrappers
-     */
     private function processImagesForPdf(string $html): string
     {
-        // Pattern untuk match img tags
         $pattern = '/<img([^>]*?)>/i';
-
         $figureCounter = 0;
         $baseUrl = config('app.url');
 
@@ -440,18 +415,14 @@ class LaporanController extends Controller
             $figureCounter++;
             $imgAttrs = $matches[1];
 
-            // Extract src
             preg_match('/src=["\']([^"\']*)["\']/', $imgAttrs, $srcMatch);
             $src = $srcMatch[1] ?? '';
 
-            // Convert relative URL to absolute URL
             if (!empty($src)) {
                 if (strpos($src, 'http') !== 0 && strpos($src, 'data:') !== 0) {
-                    // Relative path, convert to absolute
                     if (strpos($src, '/storage/') === 0 || strpos($src, '/uploads/') === 0) {
                         $src = $baseUrl . $src;
                     } else {
-                        // Try to get full path from storage
                         $storagePath = str_replace('/storage/', '', $src);
                         if (Storage::disk('public')->exists($storagePath)) {
                             $src = $baseUrl . '/storage/' . $storagePath;
@@ -460,15 +431,12 @@ class LaporanController extends Controller
                 }
             }
 
-            // Extract alt text
             preg_match('/alt=["\']([^"\']*)["\']/', $imgAttrs, $altMatch);
             $altText = $altMatch[1] ?? '';
 
-            // Remove old src and add new absolute src
             $imgAttrs = preg_replace('/src=["\'][^"\']*["\']/', '', $imgAttrs);
             $imgAttrs = 'src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8') . '" ' . $imgAttrs;
 
-            // Create figure wrapper
             return sprintf(
                 '<figure style="margin: 1em 0; text-align: center;"><img%s style="max-width: 100%%; height: auto; object-fit: contain; display: block; margin: 0 auto;"><figcaption style="font-size: 10pt; font-style: italic; margin-top: 5px; text-align: center;">Gambar %d: %s</figcaption></figure>',
                 $imgAttrs,
@@ -480,9 +448,6 @@ class LaporanController extends Controller
         return $processed ?? $html;
     }
 
-    /**
-     * Helper untuk membuat section default dinamis berdasarkan jenis laporan.
-     */
     private function createDefaultSections(Laporan $laporan, string $reportType): void
     {
         $sections = [];

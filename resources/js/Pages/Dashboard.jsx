@@ -7,7 +7,7 @@ export default function Dashboard({ auth, laporans, templates }) {
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const laporanList = laporans ?? [];
 
-    // Helper: Format Tanggal
+    // Helper: Format Tanggal (Tetap dipake buat Modal History)
     const formatDate = (dateString) => {
         if (!dateString) return "Belum diedit";
         return new Date(dateString).toLocaleDateString("id-ID", {
@@ -15,6 +15,35 @@ export default function Dashboard({ auth, laporans, templates }) {
             month: "short",
             year: "numeric",
         });
+    };
+
+    // Helper Baru: Time Ago (Buat Card Dashboard)
+    const formatTimeAgo = (dateString) => {
+        if (!dateString) return "Belum diedit";
+
+        const date = new Date(dateString);
+        const now = new Date();
+        const seconds = Math.floor((now - date) / 1000);
+
+        const intervals = [
+            { label: 'tahun', seconds: 31536000 },
+            { label: 'bulan', seconds: 2592000 },
+            { label: 'hari', seconds: 86400 },
+            { label: 'jam', seconds: 3600 },
+            { label: 'menit', seconds: 60 },
+            { label: 'detik', seconds: 1 }
+        ];
+
+        for (let i = 0; i < intervals.length; i++) {
+            const interval = intervals[i];
+            const count = Math.floor(seconds / interval.seconds);
+            
+            if (count >= 1) {
+                if (interval.label === 'detik' && count < 30) return "Baru saja";
+                return `${count} ${interval.label} yang lalu`;
+            }
+        }
+        return "Baru saja";
     };
 
     // Helper: Hitung Progress
@@ -29,7 +58,6 @@ export default function Dashboard({ auth, laporans, templates }) {
             header={
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        {/* REVISI: Pake warna solid aja biar aman dan kontras */}
                         <h2 className="text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">
                             Selamat datang, {auth.user.name} 👋
                         </h2>
@@ -202,8 +230,9 @@ export default function Dashboard({ auth, laporans, templates }) {
                                         </div>
 
                                         <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-4">
-                                            <span className="text-xs text-slate-400">
-                                                {formatDate(laporan.updated_at)}
+                                            {/* UPDATE: Pake formatTimeAgo disini */}
+                                            <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+                                                🕒 {formatTimeAgo(laporan.updated_at)}
                                             </span>
                                             <Link
                                                 href={route("laporan.edit", laporan.id)}
@@ -219,7 +248,7 @@ export default function Dashboard({ auth, laporans, templates }) {
                     )}
                 </section>
 
-                {/* MODAL RIWAYAT */}
+                {/* MODAL RIWAYAT (Tetap pake formatDate biar detail) */}
                 <Modal show={showHistoryModal} onClose={() => setShowHistoryModal(false)}>
                     <div className="p-6">
                         <div className="flex items-center justify-between mb-6">

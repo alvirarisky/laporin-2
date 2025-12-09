@@ -1,9 +1,10 @@
+import { useEffect } from 'react';
 import Checkbox from '@/Components/Checkbox';
+import GuestLayout from '@/Layouts/GuestLayout';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Login({ status, canResetPassword }) {
@@ -13,122 +14,95 @@ export default function Login({ status, canResetPassword }) {
         remember: false,
     });
 
+    useEffect(() => {
+        return () => {
+            reset('password');
+        };
+    }, []);
+
     const submit = (e) => {
         e.preventDefault();
-
-        post(route('login'), {
-            onFinish: () => reset('password'),
-        });
+        post(route('login'));
     };
 
     return (
         <GuestLayout>
-            <Head title="Masuk – Laporin" />
+            <Head title="Masuk ke Laporin" />
 
-            <div className="mb-6 space-y-2 text-left">
-                <h1 className="text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-                    Masuk ke akun akademik kamu
-                </h1>
-                <p className="text-sm text-slate-400">
-                    Akses dashboard laporan dan Questify dengan akun kampus atau
-                    email yang sudah terdaftar.
-                </p>
+            <div className="mb-6 text-center">
+                <h2 className="text-2xl font-bold text-white">Selamat Datang Kembali</h2>
+                <p className="text-zinc-400 text-sm mt-1">Lanjutkan progres skripsimu yang tertunda.</p>
             </div>
 
-            {status && (
-                <div className="mb-4 rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs font-medium text-emerald-300">
-                    {status}
-                </div>
-            )}
+            {status && <div className="mb-4 font-medium text-sm text-green-400">{status}</div>}
 
-            <form onSubmit={submit} className="space-y-4">
-                <div className="space-y-1">
-                    <InputLabel
-                        htmlFor="email"
-                        value="Email akademik"
-                        className="text-slate-200"
-                    />
-
+            <form onSubmit={submit} className="space-y-5">
+                <div>
+                    <InputLabel htmlFor="email" value="Email Kampus / Pribadi" className="text-zinc-300" />
                     <TextInput
                         id="email"
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1 block w-full rounded-xl border-slate-700 bg-slate-900/60 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:ring-sky-500"
+                        className="mt-1 block w-full bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 rounded-lg placeholder-zinc-600"
+                        placeholder="nama@mahasiswa.ac.id"
                         autoComplete="username"
-                        isFocused
-                        placeholder="nama@kampus.ac.id"
+                        isFocused={true}
                         onChange={(e) => setData('email', e.target.value)}
                     />
-
-                    <InputError message={errors.email} className="mt-1 text-xs" />
+                    <InputError message={errors.email} className="mt-2" />
                 </div>
 
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                        <InputLabel
-                            htmlFor="password"
-                            value="Kata sandi"
-                            className="text-slate-200"
-                        />
-                        {canResetPassword && (
-                            <Link
-                                href={route('password.request')}
-                                className="text-xs font-medium text-sky-300 hover:text-sky-200"
-                            >
-                                Lupa kata sandi?
-                            </Link>
-                        )}
-                    </div>
-
+                <div>
+                    <InputLabel htmlFor="password" value="Password" className="text-zinc-300" />
                     <TextInput
                         id="password"
                         type="password"
                         name="password"
                         value={data.password}
-                        className="mt-1 block w-full rounded-xl border-slate-700 bg-slate-900/60 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:ring-sky-500"
-                        autoComplete="current-password"
+                        className="mt-1 block w-full bg-zinc-900 border-zinc-700 text-white focus:border-indigo-500 focus:ring-indigo-500 rounded-lg placeholder-zinc-600"
                         placeholder="••••••••"
+                        autoComplete="current-password"
                         onChange={(e) => setData('password', e.target.value)}
                     />
-
-                    <InputError message={errors.password} className="mt-1 text-xs" />
+                    <InputError message={errors.password} className="mt-2" />
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                    <label className="flex items-center gap-2 text-xs text-slate-300">
-                        <Checkbox
-                            name="remember"
-                            checked={data.remember}
-                            onChange={(e) =>
-                                setData('remember', e.target.checked)
-                            }
+                <div className="block mt-4 flex items-center justify-between">
+                    <label className="flex items-center">
+                        <Checkbox 
+                            name="remember" 
+                            checked={data.remember} 
+                            onChange={(e) => setData('remember', e.target.checked)} 
+                            className="bg-zinc-900 border-zinc-700 text-indigo-600 focus:ring-indigo-500"
                         />
-                        <span>Ingat saya di perangkat ini</span>
+                        <span className="ms-2 text-sm text-zinc-400">Ingat Saya</span>
                     </label>
 
-                    <span className="text-[11px] text-slate-500">
-                        Aman, hanya untuk keperluan autentikasi.
-                    </span>
+                    {canResetPassword && (
+                        <Link
+                            href={route('password.request')}
+                            className="text-sm text-indigo-400 hover:text-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-zinc-900"
+                        >
+                            Lupa Password?
+                        </Link>
+                    )}
                 </div>
 
-                <div className="pt-2">
-                    <PrimaryButton
-                        className="inline-flex w-full justify-center rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-sky-500/40 hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-sky-500/60"
+                <div className="mt-6">
+                    <PrimaryButton 
+                        className="w-full justify-center py-3 bg-indigo-600 hover:bg-indigo-500 focus:bg-indigo-500 active:bg-indigo-700 text-white font-bold rounded-lg transition-all" 
                         disabled={processing}
                     >
-                        Masuk ke Laporin
+                        {processing ? 'Memproses...' : 'Masuk Sekarang'}
                     </PrimaryButton>
+                </div>
 
-                    <p className="mt-3 text-center text-xs text-slate-400">
-                        Belum punya akun?{' '}
-                        <Link
-                            href={route('register')}
-                            className="font-semibold text-sky-300 hover:text-sky-200"
-                        >
-                            Daftar sekarang
-                        </Link>
-                    </p>
+                <div className="mt-6 text-center text-sm text-zinc-500">
+                    Belum punya akun?{' '}
+                    <Link href={route('register')} className="text-white hover:text-indigo-400 font-bold transition-colors">
+                        Daftar disini
+                    </Link>
                 </div>
             </form>
         </GuestLayout>

@@ -1,12 +1,11 @@
 <?php
 
-
 use App\Http\Controllers\GameController;
-use App\Http\Controllers\ImageController; // <--- PAKE INI YANG BENER
+use App\Http\Controllers\ImageController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportSectionController;
-use App\Http\Controllers\SectionController; // Buat Reorder
+use App\Http\Controllers\SectionController;
 use App\Http\Controllers\TemplateController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +39,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         $user = Auth::user();
         return Inertia::render('Dashboard', [
-            'laporans' => $user->laporans()->with('sections')->latest()->get(),
+            // UPDATE: Sorting berdasarkan updated_at biar draft terakhir naik ke atas
+            'laporans' => $user->laporans()->with('sections')->latest('updated_at')->get(),
             'templates' => $user->templates()->get(),
         ]);
     })->name('dashboard');
@@ -75,17 +75,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/templates/{template}/use/laporan/{laporan}', [TemplateController::class, 'useTemplate'])->name('templates.use.laporan');
     Route::post('/templates/{template}/apply/{laporan}', [TemplateController::class, 'apply'])->name('templates.apply');
 
-    // --- Rute Upload Gambar (FIXED) ---
-    // Ini pake ImageController yang baru kita bersihin
+    // --- Rute Upload Gambar ---
     Route::post('/upload-image', [ImageController::class, 'store'])->name('images.upload');
 
     // --- RUTE FITUR QUESTIFY ---
     Route::get('/questify', [GameController::class, 'index'])->name('questify.index');
     Route::get('/questify/{game:slug}', [GameController::class, 'show'])->name('questify.show');
-
-    // Route Import Template
-    Route::post('/laporan/{laporan}/import-template', [TemplateController::class, 'import'])
-        ->name('templates.import');
 });
 
 require __DIR__ . '/auth.php';

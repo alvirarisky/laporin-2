@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import { Head, router, usePage } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import axios from "axios";
 
 // Tiptap Imports
@@ -25,9 +25,13 @@ const Icons = {
     Justify: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>,
     Image: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>,
     H2: () => <span className="font-serif font-bold text-xs">H2</span>,
+    BulletList: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+    OrderedList: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>,
+    Code: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>,
+    Quote: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"></path></svg>,
+    Undo: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>,
+    Redo: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg>,
     Menu: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>,
-    ChevronLeft: () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
-    ChevronRight: () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
     Trash: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
     Plus: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
     Edit: () => <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
@@ -37,10 +41,12 @@ const Icons = {
     Check: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
     Close: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
     Sub: () => <svg className="w-3 h-3 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"></circle></svg>,
-    Import: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Import: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    ArrowRight: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>,
+    ArrowLeft: () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
 };
 
-// --- HELPER: BUILD TREE STRUCTURE ---
+// --- HELPER: BUILD TREE ---
 const buildSectionTree = (flatSections) => {
     if (!flatSections) return [];
     const sectionsMap = {};
@@ -59,8 +65,33 @@ const buildSectionTree = (flatSections) => {
     return roots;
 };
 
-// --- TOOLBAR ---
+// --- HELPER: FLATTEN TREE FOR NAVIGATION ---
+const flattenSections = (nodes) => {
+    let flat = [];
+    nodes.forEach(node => {
+        flat.push(node);
+        if (node.children && node.children.length > 0) {
+            flat = flat.concat(flattenSections(node.children));
+        }
+    });
+    return flat;
+};
+
+// --- TOOLBAR (REACTIVE) ---
 const MenuBar = ({ editor, onImageUpload }) => {
+    // FORCE UPDATE STATE BIAR REDO NYALA
+    const [updater, setUpdater] = useState(0);
+    useEffect(() => {
+        if (!editor) return;
+        const forceUpdate = () => setUpdater(prev => prev + 1);
+        editor.on('transaction', forceUpdate);
+        editor.on('selectionUpdate', forceUpdate);
+        return () => {
+            editor.off('transaction', forceUpdate);
+            editor.off('selectionUpdate', forceUpdate);
+        };
+    }, [editor]);
+
     const triggerUpload = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -75,20 +106,56 @@ const MenuBar = ({ editor, onImageUpload }) => {
 
     if (!editor) return null;
 
-    const Button = ({ onClick, isActive, disabled, children }) => (
-        <button type="button" onClick={onClick} disabled={disabled} className={`p-1.5 rounded-md transition-all ${isActive ? "bg-indigo-100 text-indigo-700" : "text-slate-600 hover:bg-slate-100"} ${disabled ? "opacity-50" : ""}`}>{children}</button>
+    const Button = ({ onClick, isActive, disabled, children, title }) => (
+        <button type="button" onClick={onClick} disabled={disabled} title={title} className={`p-1.5 rounded-md transition-all ${isActive ? "bg-indigo-100 text-indigo-700" : "text-slate-600 hover:bg-slate-100"} ${disabled ? "opacity-30 cursor-not-allowed" : ""}`}>{children}</button>
     );
 
+    const handleFontChange = (e) => {
+        const font = e.target.value;
+        if (font === 'Times New Roman') editor.chain().focus().unsetFontFamily().run();
+        else editor.chain().focus().setFontFamily(font).run();
+    };
+
+    const getCurrentFont = () => {
+        if (editor.isActive('textStyle', { fontFamily: 'Arial' })) return 'Arial';
+        if (editor.isActive('textStyle', { fontFamily: 'Courier New' })) return 'Courier New';
+        if (editor.isActive('textStyle', { fontFamily: 'Georgia' })) return 'Georgia';
+        if (editor.isActive('textStyle', { fontFamily: 'Verdana' })) return 'Verdana';
+        return 'Times New Roman';
+    };
+
     return (
-        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 py-2 flex items-center gap-3 rounded-t-xl shadow-sm">
-            <div className="flex gap-1 border-r pr-2"><Button onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")}><Icons.Bold/></Button><Button onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")}><Icons.Italic/></Button></div>
-            <div className="flex gap-1 border-r pr-2"><Button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive("heading", { level: 2 })}><Icons.H2/></Button></div>
-            <div className="flex gap-1 border-r pr-2">
-                <Button onClick={() => editor.chain().focus().setTextAlign("left").run()} isActive={editor.isActive({ textAlign: "left" })}><Icons.Left/></Button>
-                <Button onClick={() => editor.chain().focus().setTextAlign("center").run()} isActive={editor.isActive({ textAlign: "center" })}><Icons.Center/></Button>
-                <Button onClick={() => editor.chain().focus().setTextAlign("justify").run()} isActive={editor.isActive({ textAlign: "justify" })}><Icons.Justify/></Button>
+        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 py-2 flex flex-wrap items-center gap-1 rounded-t-xl shadow-sm">
+            <div className="flex gap-0.5 border-r border-slate-200 pr-2 mr-1">
+                <Button onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo"><Icons.Undo/></Button>
+                <Button onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo"><Icons.Redo/></Button>
             </div>
-            <Button onClick={triggerUpload}><Icons.Image/></Button>
+            <div className="flex gap-0.5 border-r border-slate-200 pr-2 mr-1">
+                 <select value={getCurrentFont()} onChange={handleFontChange} className="h-7 text-xs border-none bg-slate-50 text-slate-700 rounded focus:ring-0 cursor-pointer hover:bg-slate-100 w-32 py-0 pl-2 pr-6">
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Arial">Arial (Sans)</option>
+                    <option value="Courier New">Courier New (Code)</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                </select>
+            </div>
+            <div className="flex gap-0.5 border-r border-slate-200 pr-2 mr-1">
+                <Button onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive("bold")} title="Bold"><Icons.Bold/></Button>
+                <Button onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive("italic")} title="Italic"><Icons.Italic/></Button>
+                <Button onClick={() => editor.chain().focus().toggleCodeBlock().run()} isActive={editor.isActive("codeBlock")} title="Code Block"><Icons.Code/></Button>
+            </div>
+            <div className="flex gap-0.5 border-r border-slate-200 pr-2 mr-1">
+                <Button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive("heading", { level: 2 })} title="Heading 2"><Icons.H2/></Button>
+                <Button onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive("bulletList")} title="Bullet List"><Icons.BulletList/></Button>
+                <Button onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive("orderedList")} title="Numbered List"><Icons.OrderedList/></Button>
+                <Button onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive("blockquote")} title="Quote"><Icons.Quote/></Button>
+            </div>
+            <div className="flex gap-0.5 border-r border-slate-200 pr-2 mr-1">
+                <Button onClick={() => editor.chain().focus().setTextAlign("left").run()} isActive={editor.isActive({ textAlign: "left" })} title="Left"><Icons.Left/></Button>
+                <Button onClick={() => editor.chain().focus().setTextAlign("center").run()} isActive={editor.isActive({ textAlign: "center" })} title="Center"><Icons.Center/></Button>
+                <Button onClick={() => editor.chain().focus().setTextAlign("justify").run()} isActive={editor.isActive({ textAlign: "justify" })} title="Justify"><Icons.Justify/></Button>
+            </div>
+            <Button onClick={triggerUpload} title="Insert Image"><Icons.Image/></Button>
         </div>
     );
 };
@@ -96,7 +163,6 @@ const MenuBar = ({ editor, onImageUpload }) => {
 // --- SIDEBAR ITEM ---
 const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection, onDelete }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
-    
     const [isOpen, setIsOpen] = useState(true);
     const [isAddingChild, setIsAddingChild] = useState(false);
     const [newChildTitle, setNewChildTitle] = useState("");
@@ -107,19 +173,8 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
     const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
     const isActive = activeSection?.id === section.id;
 
-    const handleSaveTitle = async () => {
-        try { await axios.put(route('sections.update', section.id), { title: editTitle }); setIsEditing(false); router.reload({ only: ['laporan'] }); } catch (error) { console.error(error); }
-    };
-
-    const handleSaveChild = async () => {
-        if (!newChildTitle.trim()) return setIsAddingChild(false);
-        try {
-            await onAddSubSection(section.id, newChildTitle); 
-            setNewChildTitle("");
-            setIsAddingChild(false);
-            setIsOpen(true); 
-        } catch (e) { alert("Gagal nambah sub-bab"); }
-    };
+    const handleSaveTitle = async () => { try { await axios.put(route('sections.update', section.id), { title: editTitle }); setIsEditing(false); router.reload({ only: ['laporan'] }); } catch (error) { console.error(error); } };
+    const handleSaveChild = async () => { if (!newChildTitle.trim()) return setIsAddingChild(false); try { await onAddSubSection(section.id, newChildTitle); setNewChildTitle(""); setIsAddingChild(false); setIsOpen(true); } catch (e) { alert("Gagal nambah sub-bab"); } };
 
     return (
         <li ref={setNodeRef} style={style} className="mb-1 select-none">
@@ -129,43 +184,17 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
                     {section.children?.length > 0 ? (isOpen ? <Icons.FolderOpen/> : <Icons.FolderClosed/>) : <div className="w-3"/>}
                 </button>
                 <button onClick={() => onSelect(section)} className="flex-1 text-left truncate text-sm font-semibold py-0.5">
-                    {isEditing ? (
-                        <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleSaveTitle} onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()} className="w-full px-1 py-0 bg-white border border-indigo-300 rounded focus:ring-0 text-sm" autoFocus onClick={(e) => e.stopPropagation()} />
-                    ) : section.title}
+                    {isEditing ? ( <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleSaveTitle} onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()} className="w-full px-1 py-0 bg-white border border-indigo-300 rounded focus:ring-0 text-sm" autoFocus onClick={(e) => e.stopPropagation()} /> ) : section.title}
                 </button>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-0.5">
                     <button onClick={(e) => { e.stopPropagation(); setIsAddingChild(true); setIsOpen(true); }} className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" title="Tambah Sub-bab"><Icons.Plus/></button>
                     <div className="relative">
                         <button onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200"><Icons.Menu/></button>
-                        {showMenu && (
-                            <>
-                                <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)}/>
-                                <div className="absolute right-0 top-6 w-32 bg-white rounded-lg shadow-xl border border-slate-100 z-30 py-1 flex flex-col">
-                                    <button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex gap-2 items-center text-slate-600"><Icons.Edit/> Rename</button>
-                                    <button onClick={() => { if(confirm('Hapus bab ini?')) onDelete(section.id); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex gap-2 items-center"><Icons.Trash/> Delete</button>
-                                </div>
-                            </>
-                        )}
+                        {showMenu && (<><div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)}/><div className="absolute right-0 top-6 w-32 bg-white rounded-lg shadow-xl border border-slate-100 z-30 py-1 flex flex-col"><button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex gap-2 items-center text-slate-600"><Icons.Edit/> Rename</button><button onClick={() => { if(confirm('Hapus bab ini?')) onDelete(section.id); setShowMenu(false); }} className="text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex gap-2 items-center"><Icons.Trash/> Delete</button></div></>)}
                     </div>
                 </div>
             </div>
-            {isOpen && (
-                <ul className="ml-5 pl-3 border-l border-slate-200 space-y-0.5 mt-1 pb-1">
-                    {section.children?.map((child) => (
-                        <li key={child.id} className={`group/sub flex items-center justify-between py-1 px-2 rounded-md ${activeSection?.id === child.id ? 'bg-slate-100 text-indigo-600 font-medium' : 'hover:bg-slate-50 text-slate-500'}`}>
-                            <button onClick={() => onSelect(child)} className="text-xs text-left truncate flex-1 flex items-center gap-2"><Icons.Sub />{child.title}</button>
-                            <button onClick={(e) => { e.stopPropagation(); if(confirm('Hapus sub-bab?')) onDelete(child.id); }} className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-slate-300 hover:text-red-500"><Icons.Trash/></button>
-                        </li>
-                    ))}
-                    {isAddingChild && (
-                        <li className="flex items-center gap-1 px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-sm ml-1">
-                            <input autoFocus value={newChildTitle} onChange={(e) => setNewChildTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveChild(); if (e.key === 'Escape') setIsAddingChild(false); }} placeholder="Judul sub-bab..." className="w-full text-xs border-none p-0 focus:ring-0 text-slate-700 placeholder:text-slate-300" />
-                            <button onClick={handleSaveChild} className="text-emerald-500 hover:text-emerald-700"><Icons.Check/></button>
-                            <button onClick={() => setIsAddingChild(false)} className="text-red-400 hover:text-red-600"><Icons.Close/></button>
-                        </li>
-                    )}
-                </ul>
-            )}
+            {isOpen && (<ul className="ml-5 pl-3 border-l border-slate-200 space-y-0.5 mt-1 pb-1">{section.children?.map((child) => (<li key={child.id} className={`group/sub flex items-center justify-between py-1 px-2 rounded-md ${activeSection?.id === child.id ? 'bg-slate-100 text-indigo-600 font-medium' : 'hover:bg-slate-50 text-slate-500'}`}><button onClick={() => onSelect(child)} className="text-xs text-left truncate flex-1 flex items-center gap-2"><Icons.Sub />{child.title}</button><button onClick={(e) => { e.stopPropagation(); if(confirm('Hapus sub-bab?')) onDelete(child.id); }} className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-slate-300 hover:text-red-500"><Icons.Trash/></button></li>))}{isAddingChild && (<li className="flex items-center gap-1 px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-sm ml-1"><input autoFocus value={newChildTitle} onChange={(e) => setNewChildTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveChild(); if (e.key === 'Escape') setIsAddingChild(false); }} placeholder="Judul sub-bab..." className="w-full text-xs border-none p-0 focus:ring-0 text-slate-700 placeholder:text-slate-300" /><button onClick={handleSaveChild} className="text-emerald-500 hover:text-emerald-700"><Icons.Check/></button><button onClick={() => setIsAddingChild(false)} className="text-red-400 hover:text-red-600"><Icons.Close/></button></li>)}</ul>)}
         </li>
     );
 };
@@ -174,17 +203,17 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
 export default function Edit({ auth, laporan }) {
     const [treeSections, setTreeSections] = useState([]);
     
-    // Convert flat data to tree
-    useEffect(() => {
-        if(laporan?.sections) {
-            setTreeSections(buildSectionTree(laporan.sections));
-        }
-    }, [laporan]);
+    useEffect(() => { if(laporan?.sections) { setTreeSections(buildSectionTree(laporan.sections)); } }, [laporan]);
 
     const [activeSection, setActiveSection] = useState(() => {
         const sections = laporan?.sections || [];
         return sections.find(s => !s.parent_id) || null;
     });
+
+    const flatSections = useMemo(() => flattenSections(treeSections), [treeSections]);
+    const activeIndex = useMemo(() => flatSections.findIndex(s => s.id === activeSection?.id), [flatSections, activeSection]);
+    const prevSection = activeIndex > 0 ? flatSections[activeIndex - 1] : null;
+    const nextSection = activeIndex < flatSections.length - 1 ? flatSections[activeIndex + 1] : null;
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [saveStatus, setSaveStatus] = useState(null);
@@ -192,59 +221,54 @@ export default function Edit({ auth, laporan }) {
     const [showRootAdd, setShowRootAdd] = useState(false);
     const [newRootTitle, setNewRootTitle] = useState('');
     const [isImporting, setIsImporting] = useState(false);
+    
+    // WORD COUNT STATE
+    const [wordCount, setWordCount] = useState(0);
 
-    // TIPTAP
     const editor = useEditor({
-        extensions: [
-            StarterKit, TextStyle, FontFamily,
-            TextAlign.configure({ types: ["heading", "paragraph"] }),
-            Image.configure({ inline: false, allowBase64: true }), // Enable Base64
-        ],
+        extensions: [ StarterKit, TextStyle, FontFamily, TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ inline: false, allowBase64: true, HTMLAttributes: { class: 'content-image' } }) ],
         content: activeSection?.content || "",
-        onUpdate: () => setSaveStatus(null),
+        onUpdate: ({ editor }) => {
+            setSaveStatus(null);
+            // Count words manually (Regex simple)
+            const text = editor.getText();
+            const words = text.trim().split(/\s+/).filter(w => w !== "").length;
+            setWordCount(words);
+        },
+        onCreate: ({ editor }) => {
+             // Init Word Count
+             const text = editor.getText();
+             const words = text.trim().split(/\s+/).filter(w => w !== "").length;
+             setWordCount(words);
+        }
     });
 
     useEffect(() => {
         if (editor && activeSection && editor.getHTML() !== activeSection.content) {
             editor.commands.setContent(activeSection.content);
+            // Reset word count on section change
+            const text = editor.getText();
+            const words = text.trim().split(/\s+/).filter(w => w !== "").length;
+            setWordCount(words);
         }
     }, [activeSection, editor]);
 
-    // --- HANDLER IMAGE UPLOAD (JURUS MABOK - BASE64) ---
-    // Bypass server, simpan gambar sebagai text di DB
     const handleImageUpload = (file) => {
-        if (!file) return;
-
-        // Validasi ukuran (max 5MB biar ga berat bgt)
-        if (file.size > 5 * 1024 * 1024) {
-            alert("Ukuran gambar terlalu besar! Maksimal 5MB.");
-            return Promise.reject("File too large");
-        }
-
+        if (!file || !file.type.startsWith('image/')) return;
+        if (file.size > 5 * 1024 * 1024) return alert("Max 5MB!");
         return new Promise((resolve) => {
             const reader = new FileReader();
-            
             reader.onload = (e) => {
-                const base64String = e.target.result;
-                
-                // Masukin ke Editor Tiptap
-                editor.chain().focus().setImage({ src: base64String }).run();
-                
-                // Tambahin caption otomatis
-                editor.chain().focus().enter().insertContent(
-                    `<p style="text-align: center; font-style: italic; font-size: 0.875rem; color: #666;">Gambar: ${file.name}</p>`
-                ).run();
-                
+                editor.chain().focus().setImage({ src: e.target.result }).createParagraphNear().insertContent(`<p class="img-caption">Gambar: ${file.name}</p>`).run();
                 resolve();
             };
-
-            // Mulai baca file
             reader.readAsDataURL(file);
         });
     };
 
-    const handleSaveContent = () => {
-        if (!activeSection) return;
+    // SAVE FUNCTION (Memoized for Shortcut)
+    const handleSaveContent = useCallback(() => {
+        if (!activeSection || !editor) return;
         setIsProcessing(true);
         setSaveStatus('saving');
         router.put(route("sections.update", activeSection.id), { content: editor.getHTML() }, {
@@ -252,56 +276,25 @@ export default function Edit({ auth, laporan }) {
             onFinish: () => setIsProcessing(false),
             onSuccess: () => { setSaveStatus('saved'); setTimeout(() => setSaveStatus(null), 3000); }
         });
-    };
+    }, [activeSection, editor]);
 
-    const handleAddSubSection = async (parentId, title) => {
-        try {
-            await axios.post(route('sections.store', laporan.id), { title: title, parent_id: parentId });
-            router.reload({ only: ['laporan'], preserveScroll: true });
-        } catch (e) { throw e; }
-    };
+    // KEYBOARD SHORTCUT LISTENER (Ctrl+S / Cmd+S)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault(); // Prevent Browser Save Dialog
+                handleSaveContent();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleSaveContent]);
 
-    const handleDeleteSection = async (id) => {
-        try {
-            await axios.delete(route('sections.destroy', id));
-            router.reload({ only: ['laporan'], preserveScroll: true });
-            if (activeSection?.id === id) setActiveSection(null);
-        } catch (e) { alert('Gagal hapus'); }
-    };
+    const handleAddSubSection = async (parentId, title) => { try { await axios.post(route('sections.store', laporan.id), { title: title, parent_id: parentId }); router.reload({ only: ['laporan'], preserveScroll: true }); } catch (e) { throw e; } };
+    const handleDeleteSection = async (id) => { try { await axios.delete(route('sections.destroy', id)); router.reload({ only: ['laporan'], preserveScroll: true }); if (activeSection?.id === id) setActiveSection(null); } catch (e) { alert('Gagal hapus'); } };
+    const handleAddRootSection = async () => { if (!newRootTitle.trim()) return; try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) { alert('Gagal tambah bab'); } };
+    const handleImportTemplate = async (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const formData = new FormData(); formData.append('template_file', file); try { await axios.post(route('templates.import', laporan.id), formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Sukses import template!'); router.reload({ only: ['laporan'] }); } catch (error) { alert('Gagal import'); } finally { setIsImporting(false); e.target.value = ''; } };
 
-    const handleAddRootSection = async () => {
-        if (!newRootTitle.trim()) return;
-        try {
-            await axios.post(route('sections.store', laporan.id), { title: newRootTitle });
-            setNewRootTitle(''); setShowRootAdd(false);
-            router.reload({ only: ['laporan'] });
-        } catch (e) { alert('Gagal tambah bab'); }
-    };
-
-    // LOGIC IMPORT TEMPLATE
-    const handleImportTemplate = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        setIsImporting(true);
-        const formData = new FormData();
-        formData.append('template_file', file);
-
-        try {
-            await axios.post(route('templates.import', laporan.id), formData, { 
-                headers: { 'Content-Type': 'multipart/form-data' } 
-            });
-            alert('Sukses import template!');
-            router.reload({ only: ['laporan'] });
-        } catch (error) { 
-            alert('Gagal import: ' + (error.response?.data?.message || error.message)); 
-        } finally { 
-            setIsImporting(false); 
-            e.target.value = ''; 
-        }
-    };
-
-    // DRAG (Root Only)
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
     const handleDragEnd = async (event) => {
         const { active, over } = event;
@@ -318,78 +311,76 @@ export default function Edit({ auth, laporan }) {
 
     return (
         <AuthenticatedLayout user={auth.user} header={
-            <div className="flex justify-between items-center h-8">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 bg-slate-200 rounded text-slate-600 hover:bg-slate-300"><Icons.Menu/></button>
-                    <h2 className="font-bold text-lg text-slate-800 truncate max-w-[200px]">{laporan.judul}</h2>
-                </div>
-                <div className="flex items-center gap-3">
-                    {saveStatus === 'saved' && <span className="text-emerald-600 text-xs font-bold animate-fade-in">Saved</span>}
-                    <button onClick={handleSaveContent} disabled={isProcessing} className="px-3 py-1.5 bg-slate-900 text-white rounded-md font-bold text-xs hover:bg-slate-800 transition">
-                        {isProcessing ? '...' : 'Simpan'}
-                    </button>
-                </div>
+            <div className="flex items-start gap-3 min-h-[2rem] py-1">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0 p-1.5 bg-slate-200 rounded text-slate-600 hover:bg-slate-300 mt-0.5"><Icons.Menu/></button>
+                <h2 className="font-bold text-lg text-slate-800 leading-snug break-words flex-1">{laporan.judul}</h2>
             </div>
         }>
             <Head title={`Editor - ${laporan.judul}`} />
-            <style>{`.ProseMirror { min-height: 100%; outline: none; } .editor-image { display: block; margin: 1.5em auto; max-width: 100%; }`}</style>
+            <style>{`
+                .ProseMirror { min-height: 100%; outline: none; padding-bottom: 50px; font-family: 'Times New Roman', Times, serif; font-size: 1.125rem; line-height: 1.75; }
+                .ProseMirror img { display: block; margin: 1.5rem auto; max-width: 80%; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+                .ProseMirror p.img-caption { text-align: center; font-size: 0.875rem; color: #64748b; font-style: italic; margin-top: -0.5rem; margin-bottom: 2rem; font-family: sans-serif; }
+                .ProseMirror ul, .ProseMirror ol { padding-left: 1.5rem; margin: 1rem 0; }
+                .ProseMirror ul { list-style-type: disc; } .ProseMirror ol { list-style-type: decimal; }
+                .ProseMirror pre { background: #0d1117; color: #c9d1d9; padding: 0.75rem 1rem; border-radius: 0.5rem; font-family: 'JetBrains Mono', monospace; margin: 1rem 0; font-size: 0.875rem; }
+                .ProseMirror blockquote { border-left: 3px solid #6366f1; padding-left: 1rem; color: #64748b; font-style: italic; margin: 1rem 0; }
+            `}</style>
 
             <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-slate-100">
-                {/* --- SIDEBAR --- */}
-                <div className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r transition-all duration-300 flex flex-col`}>
-                    
-                    {/* HEADER SIDEBAR (TOMBOL BAB BARU & IMPORT) */}
+                {/* --- SIDEBAR FIX: ADDED OVERFLOW-HIDDEN --- */}
+                <div className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r transition-all duration-300 flex flex-col shadow-lg z-10 overflow-hidden`}>
                     <div className="p-4 border-b bg-white space-y-3">
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Outline</span>
-                            <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{treeSections.length} Bab</span>
-                        </div>
+                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Outline</span><span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{treeSections.length} Bab</span></div>
                         <div className="grid grid-cols-2 gap-2">
                             <button onClick={() => setShowRootAdd(true)} className="flex items-center justify-center gap-1 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 text-xs hover:bg-indigo-100"><Icons.Plus/> Bab Baru</button>
-                            <label className={`flex items-center justify-center gap-1 py-2 bg-white text-slate-600 font-bold rounded-lg border border-slate-200 text-xs hover:bg-slate-50 cursor-pointer ${isImporting ? 'opacity-50' : ''}`}>
-                                {isImporting ? <span className="animate-spin text-xs">⏳</span> : <Icons.Import/>}
-                                {isImporting ? 'Loading' : 'Import Word'}
-                                <input type="file" accept=".docx" onChange={handleImportTemplate} disabled={isImporting} className="hidden" />
-                            </label>
+                            <label className={`flex items-center justify-center gap-1 py-2 bg-white text-slate-600 font-bold rounded-lg border border-slate-200 text-xs hover:bg-slate-50 cursor-pointer ${isImporting ? 'opacity-50' : ''}`}>{isImporting ? <span className="animate-spin text-xs">⏳</span> : <Icons.Import/>}{isImporting ? 'Loading' : 'Import Word'}<input type="file" accept=".docx" onChange={handleImportTemplate} disabled={isImporting} className="hidden" /></label>
                         </div>
                     </div>
-                    
                     <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={treeSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                                <ul>
-                                    {treeSections.map((section, index) => (
-                                        <SortableSectionItem key={section.id} section={section} activeSection={activeSection} onSelect={setActiveSection} onAddSubSection={handleAddSubSection} index={index} onDelete={handleDeleteSection} />
-                                    ))}
-                                </ul>
-                            </SortableContext>
-                        </DndContext>
-                        
-                        {showRootAdd && (
-                            <div className="mt-2 flex items-center gap-1 px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-sm animate-in fade-in slide-in-from-top-1">
-                                <input autoFocus value={newRootTitle} onChange={(e) => setNewRootTitle(e.target.value)} onKeyDown={async (e) => { if (e.key === 'Enter' && newRootTitle.trim()) { try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) {} } if (e.key === 'Escape') setShowRootAdd(false); }} placeholder="Judul Bab Baru..." className="w-full text-sm border-none p-0 focus:ring-0 placeholder:text-slate-300" />
-                                <button onClick={() => setShowRootAdd(false)} className="text-slate-400 hover:text-red-500"><Icons.Close/></button>
-                            </div>
-                        )}
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}><SortableContext items={treeSections.map(s => s.id)} strategy={verticalListSortingStrategy}><ul>{treeSections.map((section, index) => (<SortableSectionItem key={section.id} section={section} activeSection={activeSection} onSelect={setActiveSection} onAddSubSection={handleAddSubSection} index={index} onDelete={handleDeleteSection} />))}</ul></SortableContext></DndContext>
+                        {showRootAdd && (<div className="mt-2 flex items-center gap-1 px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-sm animate-in fade-in slide-in-from-top-1"><input autoFocus value={newRootTitle} onChange={(e) => setNewRootTitle(e.target.value)} onKeyDown={async (e) => { if (e.key === 'Enter' && newRootTitle.trim()) { try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) {} } if (e.key === 'Escape') setShowRootAdd(false); }} placeholder="Judul Bab Baru..." className="w-full text-sm border-none p-0 focus:ring-0 placeholder:text-slate-300" /><button onClick={() => setShowRootAdd(false)} className="text-slate-400 hover:text-red-500"><Icons.Close/></button></div>)}
                     </div>
-
-                    {/* Footer */}
-                    <div className="p-3 border-t bg-slate-50 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                            <a href={route("laporan.preview", laporan.id)} target="_blank" className="text-center py-1.5 text-xs font-bold border rounded bg-white text-slate-600 hover:bg-slate-50">Preview</a>
-                            <a href={route("laporan.download.pdf", laporan.id)} className="text-center py-1.5 text-xs font-bold border border-red-200 text-red-600 bg-red-50 rounded hover:bg-red-100">PDF</a>
+                    <div className="p-3 border-t bg-slate-50 space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                        <div className="flex flex-col gap-2">
+                            {saveStatus === 'saved' && (<div className="text-center text-xs font-bold text-emerald-600 bg-emerald-50 py-1 rounded border border-emerald-100 animate-pulse">✅ Berhasil Disimpan!</div>)}
+                            <button onClick={handleSaveContent} disabled={isProcessing} className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-md flex justify-center items-center gap-2" title="Tekan Ctrl+S untuk simpan">{isProcessing ? 'Menyimpan...' : <><Icons.Check /> Simpan Laporan</>}</button>
                         </div>
-                        <a href={route("laporan.download.docx", laporan.id)} className="block text-center py-1.5 text-xs font-bold border border-blue-200 text-blue-600 bg-blue-50 rounded hover:bg-blue-100">Word (.docx)</a>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200"><a href={route("laporan.preview", laporan.id)} target="_blank" className="flex items-center justify-center gap-1 py-2 text-xs font-bold border rounded bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition">Preview</a><a href={route("laporan.download.pdf", laporan.id)} className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-red-100 text-red-600 bg-red-50 rounded hover:bg-red-100 transition">PDF</a></div><a href={route("laporan.download.docx", laporan.id)} className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold border border-blue-100 text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition">Export Word (.docx)</a>
                     </div>
                 </div>
 
-                {/* --- EDITOR --- */}
                 <div className="flex-1 overflow-y-auto bg-slate-100 p-8 flex justify-center">
                     {activeSection ? (
-                        <div className="w-full max-w-[210mm] bg-white shadow-xl min-h-[297mm] rounded-xl overflow-hidden ring-1 ring-slate-200">
-                            <MenuBar editor={editor} onImageUpload={handleImageUpload} />
-                            <div className="p-[2.5cm] min-h-[25cm] cursor-text" onClick={() => editor?.chain().focus().run()}>
-                                <EditorContent editor={editor} />
+                        <div className="w-full max-w-[210mm] flex flex-col gap-4 mb-10">
+                            {/* PAPER */}
+                            <div className="bg-white shadow-xl min-h-[297mm] rounded-xl overflow-hidden ring-1 ring-slate-200 flex flex-col relative group">
+                                <MenuBar editor={editor} onImageUpload={handleImageUpload} />
+                                <div className="p-[2.5cm] min-h-[25cm] cursor-text flex-1" onClick={() => editor?.chain().focus().run()}>
+                                    <EditorContent editor={editor} />
+                                </div>
+                                
+                                {/* WORD COUNT BADGE */}
+                                <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-sm border border-slate-200 px-3 py-1 rounded-full text-xs font-mono text-slate-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity select-none">
+                                    {wordCount} Kata
+                                </div>
+                            </div>
+                            
+                            {/* NAVIGATION FOOTER */}
+                            <div className="flex justify-between items-center px-2">
+                                {prevSection ? (
+                                    <button onClick={() => setActiveSection(prevSection)} className="group flex flex-col items-start gap-1 p-3 rounded-lg hover:bg-white hover:shadow-md transition-all text-slate-500 hover:text-indigo-600">
+                                        <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1"><Icons.ArrowLeft/> Sebelumnya</span>
+                                        <span className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 max-w-[200px] truncate">{prevSection.title}</span>
+                                    </button>
+                                ) : <div/>}
+
+                                {nextSection ? (
+                                    <button onClick={() => setActiveSection(nextSection)} className="group flex flex-col items-end gap-1 p-3 rounded-lg hover:bg-white hover:shadow-md transition-all text-slate-500 hover:text-indigo-600">
+                                        <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">Selanjutnya <Icons.ArrowRight/></span>
+                                        <span className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 max-w-[200px] truncate">{nextSection.title}</span>
+                                    </button>
+                                ) : <div/>}
                             </div>
                         </div>
                     ) : (

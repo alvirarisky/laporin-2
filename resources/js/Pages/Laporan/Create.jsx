@@ -7,31 +7,27 @@ import PrimaryButton from "@/Components/PrimaryButton";
 import InputError from "@/Components/InputError";
 import SelectInput from "@/Components/SelectInput";
 
-// --- 1. IMPORT FILEPOND ---
+// --- IMPORT FILEPOND ---
 import { FilePond, registerPlugin } from 'react-filepond';
-
-// Import Style Utama (WAJIB DULUAN)
 import 'filepond/dist/filepond.min.css';
-
-// Import Plugin Preview & Style-nya
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
 import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
 
-// Register plugin
 registerPlugin(FilePondPluginImagePreview);
 
-const Create = ({ auth, report_type, report_types }) => {
-    // State lokal buat FilePond visual
+// ✅ TERIMA PROPS selectedTemplate
+const Create = ({ auth, report_type, report_types, selectedTemplate }) => {
+    
     const [files, setFiles] = useState([]);
-
-    // State buat Preview PDF Cover
     const [previewUrl, setPreviewUrl] = useState("");
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [previewLoading, setPreviewLoading] = useState(false);
 
+    // ✅ INISIALISASI DATA DENGAN TEMPLATE ID
     const { data, setData, post, processing, errors } = useForm({
         report_type: report_type || (report_types && report_types.length > 0 ? report_types[0] : ''),
-        judul: "",
+        // Jika ada template, pre-fill judul biar keren
+        judul: selectedTemplate ? `Laporan: ${selectedTemplate.name}` : "", 
         nama: auth.user.name || "",
         nim: "",
         prodi: "",
@@ -42,6 +38,8 @@ const Create = ({ auth, report_type, report_types }) => {
         tahun_ajaran: new Date().getFullYear() + "/" + (new Date().getFullYear() + 1),
         logo: null,
         logo_position: "tengah",
+        // ✅ SIMPAN TEMPLATE ID (Hidden)
+        template_id: selectedTemplate ? selectedTemplate.id : null,
     });
 
     const handleInputChange = (e) => {
@@ -52,29 +50,45 @@ const Create = ({ auth, report_type, report_types }) => {
     const handlePreview = async () => {
         setPreviewLoading(true);
         setPreviewUrl('');
+        
         const formData = new FormData();
         Object.keys(data).forEach(key => {
-            formData.append(key, data[key] === null && key !== 'logo' ? '' : data[key]);
+            const value = data[key] === null ? '' : data[key];
+            if (key === 'logo' && value instanceof File) {
+                 formData.append(key, value);
+            } else if (key !== 'logo') {
+                 formData.append(key, value);
+            }
         });
 
         try {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
             const response = await fetch(route("laporan.preview.live"), {
                 method: "POST",
                 body: formData,
                 headers: {
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
+                    "X-CSRF-TOKEN": token,
                     "Accept": "text/html",
+                    "X-Requested-With": "XMLHttpRequest", 
                 },
+                credentials: 'include', 
             });
 
+            if (response.status === 419) {
+                throw new Error("Sesi kadaluarsa (419). Silakan refresh halaman.");
+            }
             if (!response.ok) throw new Error("Gagal memuat preview.");
+            
             const blob = await response.blob();
             if (previewUrl) URL.revokeObjectURL(previewUrl);
             setPreviewUrl(URL.createObjectURL(blob));
             setShowPreviewModal(true);
         } catch (error) {
-            console.error(error);
-            alert("Gagal menampilkan pratinjau. Pastikan semua data wajib terisi.");
+            console.error("Preview Error:", error);
+            const msg = error.message.includes("419") 
+                ? "Sesi kamu sudah habis. Coba refresh halaman!" 
+                : "Gagal menampilkan pratinjau. Pastikan data terisi.";
+            alert(msg);
         } finally {
             setPreviewLoading(false);
         }
@@ -111,12 +125,30 @@ const Create = ({ auth, report_type, report_types }) => {
 
             <div className="py-10">
                 <div className="max-w-5xl mx-auto sm:px-6 lg:px-8">
+                    
+                    {/* ✅ BADGE JIKA MENGGUNAKAN TEMPLATE */}
+                    {selectedTemplate && (
+                        <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-4">
+                            <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-indigo-800 font-bold text-lg">Menggunakan Template: {selectedTemplate.name}</h3>
+                                <p className="text-indigo-600 text-sm mt-1">
+                                    Setelah kamu menekan tombol <b>Simpan</b>, sistem akan otomatis membuat Bab & Sub-bab berdasarkan file template ini.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
-                        {/* KOLOM KIRI: INPUT DATA UTAMA */}
+                        {/* KOLOM KIRI */}
                         <div className="lg:col-span-2 space-y-6">
                             
-                            {/* Card 1: Informasi Dasar */}
+                            {/* Card 1 */}
                             <div className="bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200 rounded-2xl">
                                 <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
                                     <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">1</span>
@@ -187,7 +219,7 @@ const Create = ({ auth, report_type, report_types }) => {
                                 </div>
                             </div>
 
-                            {/* Card 2: Detail Akademik */}
+                            {/* Card 2 */}
                             <div className="bg-white p-6 sm:p-8 shadow-sm ring-1 ring-slate-200 rounded-2xl">
                                 <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-4 mb-6 flex items-center gap-2">
                                     <span className="bg-indigo-100 text-indigo-700 p-1.5 rounded-lg text-sm">2</span>
@@ -197,7 +229,7 @@ const Create = ({ auth, report_type, report_types }) => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div>
                                         <InputLabel htmlFor="nama" value="Nama Penulis" className="mb-1" />
-                                        <TextInput id="nama" name="nama" value={data.nama} className="block w-full rounded-xl bg-slate-50" onChange={handleInputChange} required readOnly={true} />
+                                        <TextInput id="nama" name="nama" value={data.nama} className="block w-full rounded-xl bg-slate-50" onChange={handleInputChange} required />
                                         <InputError message={errors.nama} className="mt-2" />
                                     </div>
                                     <div>
@@ -229,10 +261,10 @@ const Create = ({ auth, report_type, report_types }) => {
                             </div>
                         </div>
 
-                        {/* KOLOM KANAN: UPLOAD & ACTIONS */}
+                        {/* KOLOM KANAN */}
                         <div className="space-y-6">
                             
-                            {/* Card 3: Upload Logo */}
+                            {/* Card 3 */}
                             <div className="bg-white p-6 shadow-sm ring-1 ring-slate-200 rounded-2xl">
                                 <h3 className="text-lg font-bold text-slate-800 mb-4">Logo Institusi</h3>
                                 
@@ -251,22 +283,15 @@ const Create = ({ auth, report_type, report_types }) => {
                                     </SelectInput>
                                 </div>
 
-                                {/* --- AREA FILEPOND STABIL --- */}
                                 <div className="mt-2">
                                     <FilePond
                                         files={files}
                                         onupdatefiles={fileItems => {
                                             setFiles(fileItems.map(fileItem => fileItem.file));
-                                            
-                                            // --- ❌ KOMEN DULU BAGIAN INI (JANGAN DIJALANKAN) ---
-                                            /* const file = fileItems.length > 0 ? fileItems[0].file : null;
+                                            const file = fileItems.length > 0 ? fileItems[0].file : null;
                                             if (data.logo !== file) {
                                                 setData('logo', file);
                                             }
-                                            */
-                                            // ----------------------------------------------------
-                                            
-                                            console.log("File diupdate:", fileItems); // Cek console nanti
                                         }}
                                         allowMultiple={false}
                                         maxFiles={1}
@@ -274,17 +299,13 @@ const Create = ({ auth, report_type, report_types }) => {
                                         labelIdle='Drag & Drop logo atau <span class="filepond--label-action">Cari</span>'
                                         storeAsFile={true}
                                         credits={false} 
-
-                                        // --- SETTING WAJIB BIAR GAK GEPENG ---
                                         allowImagePreview={true}
-                                        imagePreviewHeight={170} // Paksa tinggi
-                                        stylePanelLayout='integrated' // Tampilan menyatu
+                                        imagePreviewHeight={170}
+                                        stylePanelLayout='integrated'
                                         imagePreviewMarkupShow={true}
                                     />
                                     <InputError message={errors.logo} className="mt-2" />
                                 </div>
-                                {/* --- END AREA FILEPOND --- */}
-
                             </div>
 
                             {/* Action Buttons */}
@@ -327,13 +348,10 @@ const Create = ({ auth, report_type, report_types }) => {
             {/* PREVIEW MODAL */}
             {showPreviewModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog">
-                    {/* Backdrop */}
                     <div 
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
                         onClick={() => setShowPreviewModal(false)}
                     />
-
-                    {/* Modal Content */}
                     <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[85vh] transform transition-all animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-white">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">

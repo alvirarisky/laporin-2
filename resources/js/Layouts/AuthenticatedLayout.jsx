@@ -1,25 +1,54 @@
 import Dropdown from '@/Components/Dropdown';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import Toast from '@/Components/Toast'; // <--- IMPORT TOAST DISINI
 import { Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
 export default function AuthenticatedLayout({ header, children }) {
     const user = usePage().props.auth.user;
 
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
+    const [showingNavigationDropdown, setShowingNavigationDropdown] = useState(false);
+    
+    // State buat Toast
+    const [toastMsg, setToastMsg] = useState(null);
 
     const navItems = useMemo(
         () => [
-            { label: 'Dashboard', route: route('dashboard'), active: route().current('dashboard') },
-            { label: 'Template', route: route('templates.index'), active: route().current('templates.index') },
-            { label: 'Questify', route: route('questify.index'), active: route().current('questify.index') },
+            { 
+                label: 'Dashboard', 
+                route: route('dashboard'), 
+                active: route().current('dashboard') 
+            },
+            { 
+                label: 'Template', 
+                route: route('templates.index'), 
+                active: route().current('templates.*') // Aktif kalo user ada di halaman template mana aja
+            },
+            { 
+                label: 'Questify', 
+                route: route('questify.index'), 
+                active: route().current('questify.index') 
+            },
         ],
         [],
     );
 
+    // Handler pas klik menu Coming Soon
+    const handleComingSoon = (e) => {
+        e.preventDefault();
+        setToastMsg("Sabar bray, fitur Template lagi dimasak! 👨‍🍳");
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-slate-50 relative">
+            {/* TAMPILIN TOAST DISINI */}
+            {toastMsg && (
+                <Toast 
+                    message={toastMsg} 
+                    onClose={() => setToastMsg(null)} 
+                />
+            )}
+
             <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
                 <div className="mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
@@ -48,13 +77,21 @@ export default function AuthenticatedLayout({ header, children }) {
                                     <Link
                                         key={item.label}
                                         href={item.route}
-                                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                                        // Kalo comingSoon, bajak onClick-nya
+                                        onClick={item.comingSoon ? handleComingSoon : undefined}
+                                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
                                             item.active
                                                 ? 'bg-indigo-600 text-white shadow-sm'
                                                 : 'text-gray-800 hover:text-gray-900 hover:bg-gray-100 font-medium'
-                                        }`}
+                                        } ${item.comingSoon ? 'opacity-70 hover:opacity-100' : ''}`}
                                     >
                                         {item.label}
+                                        {/* Badge SOON kecil */}
+                                        {item.comingSoon && (
+                                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 leading-none border border-amber-200">
+                                                SOON
+                                            </span>
+                                        )}
                                     </Link>
                                 ))}
                             </div>
@@ -120,7 +157,7 @@ export default function AuthenticatedLayout({ header, children }) {
                     </div>
                 </div>
 
-                {/* Bagian Navigasi Mobile (saat hamburger diklik) */}
+                {/* Bagian Navigasi Mobile */}
                 <div
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
@@ -129,9 +166,21 @@ export default function AuthenticatedLayout({ header, children }) {
                 >
                     <div className="space-y-1 pb-3 pt-2">
                         {navItems.map((item) => (
-                            <ResponsiveNavLink key={item.label} href={item.route} active={item.active}>
-                                {item.label}
-                            </ResponsiveNavLink>
+                            <div key={item.label} onClick={item.comingSoon ? handleComingSoon : undefined}>
+                                <ResponsiveNavLink 
+                                    href={item.route} 
+                                    active={item.active}
+                                    as={item.comingSoon ? 'button' : 'a'} // Ubah jadi button biar gak redirect di mobile
+                                    className={`w-full text-left flex items-center justify-between ${item.comingSoon ? 'opacity-75' : ''}`}
+                                >
+                                    {item.label}
+                                    {item.comingSoon && (
+                                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                                            SOON
+                                        </span>
+                                    )}
+                                </ResponsiveNavLink>
+                            </div>
                         ))}
                     </div>
 
