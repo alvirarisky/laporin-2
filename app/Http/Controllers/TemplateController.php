@@ -75,27 +75,27 @@ class TemplateController extends Controller
      */
     public function useTemplate(Request $request, Template $template)
     {
-        // 1. Validasi Input (Tambahin report_type)
+        // 1. Validasi Input
         $validated = $request->validate([
             'judul' => 'nullable|string|max:255',
-            'report_type' => 'nullable|string|max:100', // <--- Tambah validasi ini
+            'report_type' => 'nullable|string|max:100',
             'mata_kuliah' => 'nullable|string|max:255',
             'nim' => 'nullable|string|max:50',
             'prodi' => 'nullable|string|max:100',
             'instansi' => 'nullable|string|max:100',
         ]);
 
-        // Default value
+        // Default logic
         $judul = $validated['judul'] ?: 'Laporan: ' . $template->name;
         $matkul = $validated['mata_kuliah'] ?: 'Umum';
-        $tipe = $validated['report_type'] ?? 'Makalah'; // <--- Default jadi Makalah kalau kosong
+        $tipe = $validated['report_type'] ?? 'Makalah';
 
         // 2. Buat Laporan Baru
         $laporan = Laporan::create([
             'user_id' => Auth::id(),
             'nama' => Auth::user()->name,
             'judul' => $judul,
-            'report_type' => $tipe, // <--- Simpan Tipe Laporan di sini
+            'report_type' => $tipe,
             'mata_kuliah' => $matkul,
             
             // Isi field opsional
@@ -107,8 +107,21 @@ class TemplateController extends Controller
             'kota' => 'Jakarta', 
             'tahun_ajaran' => date('Y'),
         ]);
-    }
 
+        // 3. PARSING LOGIC (Ini yang bikin bab-nya muncul!)
+        // Cek apakah file template fisik ada, lalu convert ke Section
+        if (Storage::disk('public')->exists($template->filepath)) {
+            $filePath = Storage::disk('public')->path($template->filepath);
+            
+            // Panggil fungsi parsing yang sudah ada di bawah
+            $this->parseAndSaveSections($filePath, $laporan);
+        }
+
+        // 4. REDIRECT KHUSUS INERTIA (FIX)
+        // Gunakan to_route agar Inertia otomatis redirect browser ke halaman edit
+        return to_route('laporan.edit', $laporan->id)
+                ->with('success', 'Template berhasil diterapkan! Silakan edit isinya.');
+    }
     public function apply(Request $request, Template $template, Laporan $laporan)
     {
         if ($laporan->user_id !== Auth::id()) abort(403);
