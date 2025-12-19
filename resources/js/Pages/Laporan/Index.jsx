@@ -10,6 +10,8 @@ const Icons = {
     Edit: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>,
     Eye: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>,
     Download: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>,
+    // Ikon Word Tambahan
+    Word: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14h6m-3-3v6" /></svg>,
     Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>,
     Clock: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
 };
@@ -22,7 +24,6 @@ export default function Index({ auth, laporans, flash }) {
         if (confirm("⚠️ Yakin mau hapus laporan ini?\n\nData yang dihapus tidak bisa dikembalikan!")) {
             router.delete(route("laporan.destroy", id), {
                 onSuccess: () => {
-                    // Opsional: Bisa tambah notif toast disini kalau mau
                 }
             });
         }
@@ -37,7 +38,7 @@ export default function Index({ auth, laporans, flash }) {
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-        }).format(date).replace('.', ':'); // Biar format jamnya 14:30 bukan 14.30
+        }).format(date).replace('.', ':');
     };
 
     // Filter Logic
@@ -111,7 +112,6 @@ export default function Index({ auth, laporans, flash }) {
                                     key={laporan.id}
                                     className="group bg-[#18181b] rounded-2xl border border-zinc-800 hover:border-indigo-500/50 shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden relative"
                                 >
-                                    {/* Gradient Glow Effect */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-transparent to-purple-500/0 group-hover:from-indigo-500/5 group-hover:to-purple-500/5 transition-all duration-500"></div>
 
                                     <div className="p-6 relative z-10">
@@ -119,7 +119,6 @@ export default function Index({ auth, laporans, flash }) {
                                             <div className="p-3 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-xl group-hover:scale-110 transition-transform duration-300">
                                                 <Icons.Doc />
                                             </div>
-                                            {/* BADGE UPDATED AT (TANGGAL + JAM) */}
                                             <div className="flex flex-col items-end">
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
                                                     <Icons.Clock /> Update Terakhir
@@ -163,9 +162,17 @@ export default function Index({ auth, laporans, flash }) {
                                             >
                                                 <Icons.Download />
                                             </a>
+                                            {/* TOMBOL WORD (.DOCX) - WARNA BIRU */}
+                                            <a
+                                                href={route("laporan.download.docx", laporan.id)}
+                                                download
+                                                className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                                                title="Download Word (.docx)"
+                                            >
+                                                <Icons.Word />
+                                            </a>
                                         </div>
                                         
-                                        {/* TOMBOL DELETE MERAH */}
                                         <button
                                             onClick={() => handleDelete(laporan.id)}
                                             className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20"

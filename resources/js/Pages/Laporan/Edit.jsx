@@ -78,6 +78,22 @@ const flattenSections = (nodes) => {
     return flat;
 };
 
+// --- HELPER: UPDATE TREE RECURSIVE (NEW) ---
+// Fungsi untuk mencari dan update konten bab spesifik di dalam struktur tree yang bersarang
+const updateSectionRecursive = (sections, id, newContent) => {
+    return sections.map(section => {
+        // Jika ketemu bab yang diedit, update content-nya
+        if (section.id === id) {
+            return { ...section, content: newContent };
+        }
+        // Jika punya anak (sub-bab), cari juga di dalamnya
+        if (section.children && section.children.length > 0) {
+            return { ...section, children: updateSectionRecursive(section.children, id, newContent) };
+        }
+        return section;
+    });
+};
+
 // --- MENU BAR (Dalam Kertas) ---
 const MenuBar = ({ editor, onImageUpload }) => {
     const [updater, setUpdater] = useState(0);
@@ -161,7 +177,7 @@ const MenuBar = ({ editor, onImageUpload }) => {
 };
 
 // --- SIDEBAR ITEM (Dark Mode) ---
-const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection, onDelete }) => {
+const SortableSectionItem = ({ section, activeSectionId, onSelect, onAddSubSection, onDelete }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
     const [isOpen, setIsOpen] = useState(true);
     const [isAddingChild, setIsAddingChild] = useState(false);
@@ -171,7 +187,7 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
     const [showMenu, setShowMenu] = useState(false);
 
     const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
-    const isActive = activeSection?.id === section.id;
+    const isActive = activeSectionId === section.id;
 
     const handleSaveTitle = async () => { try { await axios.put(route('sections.update', section.id), { title: editTitle }); setIsEditing(false); router.reload({ only: ['laporan'] }); } catch (error) { console.error(error); } };
     const handleSaveChild = async () => { if (!newChildTitle.trim()) return setIsAddingChild(false); try { await onAddSubSection(section.id, newChildTitle); setNewChildTitle(""); setIsAddingChild(false); setIsOpen(true); } catch (e) { alert("Gagal nambah sub-bab"); } };
@@ -183,7 +199,7 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
                 <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className="p-1 rounded hover:bg-zinc-800 text-zinc-500">
                     {section.children?.length > 0 ? (isOpen ? <Icons.FolderOpen/> : <Icons.FolderClosed/>) : <div className="w-3"/>}
                 </button>
-                <button onClick={() => onSelect(section)} className="flex-1 text-left truncate text-sm font-semibold py-0.5">
+                <button onClick={() => onSelect(section.id)} className="flex-1 text-left truncate text-sm font-semibold py-0.5">
                     {isEditing ? ( <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} onBlur={handleSaveTitle} onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()} className="w-full px-1 py-0 bg-zinc-900 border border-indigo-500 rounded focus:ring-0 text-sm text-white" autoFocus onClick={(e) => e.stopPropagation()} /> ) : section.title}
                 </button>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-0.5">
@@ -194,7 +210,7 @@ const SortableSectionItem = ({ section, activeSection, onSelect, onAddSubSection
                     </div>
                 </div>
             </div>
-            {isOpen && (<ul className="ml-5 pl-3 border-l border-zinc-800 space-y-0.5 mt-1 pb-1">{section.children?.map((child) => (<li key={child.id} className={`group/sub flex items-center justify-between py-1 px-2 rounded-md ${activeSection?.id === child.id ? 'bg-zinc-800 text-indigo-400 font-medium' : 'hover:bg-zinc-800/50 text-zinc-500 hover:text-zinc-300'}`}><button onClick={() => onSelect(child)} className="text-xs text-left truncate flex-1 flex items-center gap-2"><Icons.Sub />{child.title}</button><button onClick={(e) => { e.stopPropagation(); if(confirm('Hapus sub-bab?')) onDelete(child.id); }} className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-zinc-600 hover:text-red-400"><Icons.Trash/></button></li>))}{isAddingChild && (<li className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-indigo-500/50 rounded-md shadow-sm ml-1"><input autoFocus value={newChildTitle} onChange={(e) => setNewChildTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveChild(); if (e.key === 'Escape') setIsAddingChild(false); }} placeholder="Judul sub-bab..." className="w-full text-xs border-none bg-transparent p-0 focus:ring-0 text-white placeholder:text-zinc-600" /><button onClick={handleSaveChild} className="text-emerald-500 hover:text-emerald-400"><Icons.Check/></button><button onClick={() => setIsAddingChild(false)} className="text-red-500 hover:text-red-400"><Icons.Close/></button></li>)}</ul>)}
+            {isOpen && (<ul className="ml-5 pl-3 border-l border-zinc-800 space-y-0.5 mt-1 pb-1">{section.children?.map((child) => (<li key={child.id} className={`group/sub flex items-center justify-between py-1 px-2 rounded-md ${activeSectionId === child.id ? 'bg-zinc-800 text-indigo-400 font-medium' : 'hover:bg-zinc-800/50 text-zinc-500 hover:text-zinc-300'}`}><button onClick={() => onSelect(child.id)} className="text-xs text-left truncate flex-1 flex items-center gap-2"><Icons.Sub />{child.title}</button><button onClick={(e) => { e.stopPropagation(); if(confirm('Hapus sub-bab?')) onDelete(child.id); }} className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-zinc-600 hover:text-red-400"><Icons.Trash/></button></li>))}{isAddingChild && (<li className="flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-indigo-500/50 rounded-md shadow-sm ml-1"><input autoFocus value={newChildTitle} onChange={(e) => setNewChildTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleSaveChild(); if (e.key === 'Escape') setIsAddingChild(false); }} placeholder="Judul sub-bab..." className="w-full text-xs border-none bg-transparent p-0 focus:ring-0 text-white placeholder:text-zinc-600" /><button onClick={handleSaveChild} className="text-emerald-500 hover:text-emerald-400"><Icons.Check/></button><button onClick={() => setIsAddingChild(false)} className="text-red-500 hover:text-red-400"><Icons.Close/></button></li>)}</ul>)}
         </li>
     );
 };
@@ -252,7 +268,7 @@ const EditCoverModal = ({ laporan, onClose }) => {
                             <input type="text" value={data.nim} onChange={e => setData('nim', e.target.value)} className="w-full text-sm bg-zinc-900 border-zinc-700 rounded-lg text-white" />
                         </div>
                     </div>
-
+                    
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-zinc-400 mb-1">Program Studi</label>
@@ -308,13 +324,15 @@ export default function Edit({ auth, laporan }) {
     
     useEffect(() => { if(laporan?.sections) { setTreeSections(buildSectionTree(laporan.sections)); } }, [laporan]);
 
-    const [activeSection, setActiveSection] = useState(() => {
+    // [FIX STATE] Simpan ID-nya saja, jangan objectnya
+    const [activeSectionId, setActiveSectionId] = useState(() => {
         const sections = laporan?.sections || [];
-        return sections.find(s => !s.parent_id) || null;
+        return sections.find(s => !s.parent_id)?.id || null;
     });
 
     const flatSections = useMemo(() => flattenSections(treeSections), [treeSections]);
-    const activeIndex = useMemo(() => flatSections.findIndex(s => s.id === activeSection?.id), [flatSections, activeSection]);
+    const activeSection = useMemo(() => flatSections.find(s => s.id === activeSectionId) || null, [flatSections, activeSectionId]);
+    const activeIndex = useMemo(() => flatSections.findIndex(s => s.id === activeSectionId), [flatSections, activeSectionId]);
     const prevSection = activeIndex > 0 ? flatSections[activeIndex - 1] : null;
     const nextSection = activeIndex < flatSections.length - 1 ? flatSections[activeIndex + 1] : null;
 
@@ -326,40 +344,35 @@ export default function Edit({ auth, laporan }) {
     const [isImporting, setIsImporting] = useState(false);
     const [showEditCover, setShowEditCover] = useState(false);
     const [wordCount, setWordCount] = useState(0);
+    const [isDirty, setIsDirty] = useState(false); 
 
     const editor = useEditor({
         extensions: [ StarterKit, TextStyle, FontFamily, TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ inline: false, allowBase64: true, HTMLAttributes: { class: 'content-image' } }) ],
         content: activeSection?.content || "",
-        
-        // 🔥 INI JURUS PAMUNGKAS: SUNTIK CLASS LANGSUNG KE TIPTAP 🔥
         editorProps: {
             attributes: {
                 class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl focus:outline-none text-black !text-black min-h-full leading-relaxed',
-                style: 'color: black !important;' // Paksa style inline juga buat jaga-jaga
+                style: 'color: black !important;'
             },
         },
-
         onUpdate: ({ editor }) => {
             setSaveStatus(null);
+            setIsDirty(true); 
             const text = editor.getText();
-            const words = text.trim().split(/\s+/).filter(w => w !== "").length;
-            setWordCount(words);
+            setWordCount(text.trim().split(/\s+/).filter(w => w !== "").length);
         },
-        onCreate: ({ editor }) => {
-             const text = editor.getText();
-             const words = text.trim().split(/\s+/).filter(w => w !== "").length;
-             setWordCount(words);
-        }
     });
 
     useEffect(() => {
-        if (editor && activeSection && editor.getHTML() !== activeSection.content) {
-            editor.commands.setContent(activeSection.content);
-            const text = editor.getText();
-            const words = text.trim().split(/\s+/).filter(w => w !== "").length;
-            setWordCount(words);
+        if (editor && activeSection) {
+            if (editor.getHTML() !== activeSection.content) {
+                editor.commands.setContent(activeSection.content);
+                setIsDirty(false); 
+                const text = editor.getText();
+                setWordCount(text.trim().split(/\s+/).filter(w => w !== "").length);
+            }
         }
-    }, [activeSection, editor]);
+    }, [activeSectionId, editor]);
 
     const handleImageUpload = (file) => {
         if (!file || !file.type.startsWith('image/')) return;
@@ -374,16 +387,41 @@ export default function Edit({ auth, laporan }) {
         });
     };
 
-    const handleSaveContent = useCallback(() => {
-        if (!activeSection || !editor) return;
+    // [FIX] Menggunakan AXIOS agar tidak reload & Update State Lokal
+    const handleSaveContent = useCallback(async () => {
+        if (!activeSectionId || !editor) return;
+        
+        const updateUrl = route("sections.update", activeSectionId);
+        const newContent = editor.getHTML(); // Ambil konten terbaru dari editor
+
         setIsProcessing(true);
         setSaveStatus('saving');
-        router.put(route("sections.update", activeSection.id), { content: editor.getHTML() }, {
-            preserveScroll: true,
-            onFinish: () => setIsProcessing(false),
-            onSuccess: () => { setSaveStatus('saved'); setTimeout(() => setSaveStatus(null), 3000); }
-        });
-    }, [activeSection, editor]);
+        
+        try {
+            // 1. Simpan ke Database via API
+            await axios.put(updateUrl, 
+                { content: newContent },
+                { headers: { 'Accept': 'application/json' } }
+            );
+
+            // 2. [FIX REALTIME] Update State Lokal agar tidak perlu refresh
+            // Kita update treeSections dengan konten baru secara rekursif
+            setTreeSections(prevSections => updateSectionRecursive(prevSections, activeSectionId, newContent));
+
+            setSaveStatus('saved');
+            setIsDirty(false); 
+            setTimeout(() => setSaveStatus(null), 3000);
+        } catch (error) {
+            console.error("Gagal simpan:", error);
+            if (error.response && error.response.status === 422) {
+                alert("Gagal simpan: Data tidak valid.");
+            } else {
+                alert("Gagal menyimpan perubahan!");
+            }
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [activeSectionId, editor]);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -393,8 +431,21 @@ export default function Edit({ auth, laporan }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleSaveContent]);
 
+    const handleSwitchSection = (newId) => {
+        if (activeSectionId === newId) return;
+        if (isDirty) {
+            if (confirm("Ada perubahan belum disimpan! Simpan dulu?")) {
+                handleSaveContent().then(() => setActiveSectionId(newId));
+            } else {
+                setActiveSectionId(newId);
+            }
+        } else {
+            setActiveSectionId(newId);
+        }
+    };
+
     const handleAddSubSection = async (parentId, title) => { try { await axios.post(route('sections.store', laporan.id), { title: title, parent_id: parentId }); router.reload({ only: ['laporan'], preserveScroll: true }); } catch (e) { throw e; } };
-    const handleDeleteSection = async (id) => { try { await axios.delete(route('sections.destroy', id)); router.reload({ only: ['laporan'], preserveScroll: true }); if (activeSection?.id === id) setActiveSection(null); } catch (e) { alert('Gagal hapus'); } };
+    const handleDeleteSection = async (id) => { try { await axios.delete(route('sections.destroy', id)); router.reload({ only: ['laporan'], preserveScroll: true }); if (activeSectionId === id) setActiveSectionId(null); } catch (e) { alert('Gagal hapus'); } };
     const handleAddRootSection = async () => { if (!newRootTitle.trim()) return; try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) { alert('Gagal tambah bab'); } };
     const handleImportTemplate = async (e) => { const file = e.target.files[0]; if (!file) return; setIsImporting(true); const formData = new FormData(); formData.append('template_file', file); try { await axios.post(route('templates.import', laporan.id), formData, { headers: { 'Content-Type': 'multipart/form-data' } }); alert('Sukses import template!'); router.reload({ only: ['laporan'] }); } catch (error) { alert('Gagal import'); } finally { setIsImporting(false); e.target.value = ''; } };
 
@@ -417,13 +468,12 @@ export default function Edit({ auth, laporan }) {
             <div className="flex items-start gap-3 min-h-[2rem] py-1">
                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="shrink-0 p-1.5 bg-zinc-800 rounded text-zinc-400 hover:bg-zinc-700 mt-0.5"><Icons.Menu/></button>
                 <h2 className="font-bold text-lg text-zinc-100 leading-snug break-words flex-1">{laporan.judul}</h2>
+                {isDirty && <span className="text-xs text-amber-500 font-mono animate-pulse border border-amber-500/50 px-2 py-0.5 rounded">Unsaved Changes</span>}
             </div>
         }>
             <Head title={`Editor - ${laporan.judul}`} />
             
-            {showEditCover && (
-                <EditCoverModal laporan={laporan} onClose={() => setShowEditCover(false)} />
-            )}
+            {showEditCover && ( <EditCoverModal laporan={laporan} onClose={() => setShowEditCover(false)} /> )}
 
             <div className="flex h-[calc(100vh-65px)] overflow-hidden bg-[#09090b]">
                 {/* --- SIDEBAR --- */}
@@ -436,8 +486,9 @@ export default function Edit({ auth, laporan }) {
                             <label className={`flex items-center justify-center gap-1 py-2 bg-zinc-800 text-zinc-400 font-bold rounded-lg border border-zinc-700 text-xs hover:bg-zinc-700 cursor-pointer ${isImporting ? 'opacity-50' : ''}`}>{isImporting ? <span className="animate-spin text-xs">⏳</span> : <Icons.Import/>}{isImporting ? 'Loading' : 'Import Word'}<input type="file" accept=".docx" onChange={handleImportTemplate} disabled={isImporting} className="hidden" /></label>
                         </div>
                     </div>
+
                     <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}><SortableContext items={treeSections.map(s => s.id)} strategy={verticalListSortingStrategy}><ul>{treeSections.map((section, index) => (<SortableSectionItem key={section.id} section={section} activeSection={activeSection} onSelect={setActiveSection} onAddSubSection={handleAddSubSection} index={index} onDelete={handleDeleteSection} />))}</ul></SortableContext></DndContext>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}><SortableContext items={treeSections.map(s => s.id)} strategy={verticalListSortingStrategy}><ul>{treeSections.map((section, index) => (<SortableSectionItem key={section.id} section={section} activeSectionId={activeSectionId} onSelect={handleSwitchSection} onAddSubSection={handleAddSubSection} index={index} onDelete={handleDeleteSection} />))}</ul></SortableContext></DndContext>
                         {showRootAdd && (<div className="mt-2 flex items-center gap-1 px-2 py-1 bg-zinc-900 border border-indigo-500/50 rounded-md shadow-sm animate-in fade-in slide-in-from-top-1"><input autoFocus value={newRootTitle} onChange={(e) => setNewRootTitle(e.target.value)} onKeyDown={async (e) => { if (e.key === 'Enter' && newRootTitle.trim()) { try { await axios.post(route('sections.store', laporan.id), { title: newRootTitle }); setNewRootTitle(''); setShowRootAdd(false); router.reload({ only: ['laporan'] }); } catch (e) {} } if (e.key === 'Escape') setShowRootAdd(false); }} placeholder="Judul Bab Baru..." className="w-full text-sm border-none bg-transparent p-0 focus:ring-0 text-white placeholder:text-zinc-600" /><button onClick={() => setShowRootAdd(false)} className="text-zinc-500 hover:text-red-500"><Icons.Close/></button></div>)}
                     </div>
                     <div className="p-3 border-t border-zinc-800 bg-[#18181b] space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)] z-10">
@@ -445,21 +496,24 @@ export default function Edit({ auth, laporan }) {
                             {saveStatus === 'saved' && (<div className="text-center text-xs font-bold text-emerald-400 bg-emerald-500/10 py-1 rounded border border-emerald-500/20 animate-pulse">✅ Berhasil Disimpan!</div>)}
                             <button onClick={handleSaveContent} disabled={isProcessing} className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-lg flex justify-center items-center gap-2" title="Tekan Ctrl+S untuk simpan">{isProcessing ? 'Menyimpan...' : <><Icons.Check /> Simpan Laporan</>}</button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800"><a href={route("laporan.preview", laporan.id)} target="_blank" className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-zinc-700 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition">Preview</a><a href={route("laporan.download.pdf", laporan.id)} className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-red-500/20 text-red-400 bg-red-500/10 rounded hover:bg-red-500/20 transition">PDF</a></div><a href={route("laporan.download.docx", laporan.id)} className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold border border-blue-500/20 text-blue-400 bg-blue-500/10 rounded hover:bg-blue-500/20 transition">Export Word (.docx)</a>
+                        
+                        {/* [FIX] Tombol Download & Preview diberi target _blank & rel noopener agar tidak dicegat Inertia */}
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800">
+                            <a href={route("laporan.preview", laporan.id)} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-zinc-700 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white transition">Preview</a>
+                            <a href={route("laporan.download.pdf", laporan.id)} target="_blank" rel="noopener noreferrer" download className="flex items-center justify-center gap-1 py-2 text-xs font-bold border border-red-500/20 text-red-400 bg-red-500/10 rounded hover:bg-red-500/20 transition">PDF</a>
+                        </div>
+                        <a href={route("laporan.download.docx", laporan.id)} target="_blank" rel="noopener noreferrer" download className="flex items-center justify-center gap-1 w-full py-2 text-xs font-bold border border-blue-500/20 text-blue-400 bg-blue-500/10 rounded hover:bg-blue-500/20 transition">Export Word (.docx)</a>
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto bg-[#09090b] p-8 flex justify-center">
                     {activeSection ? (
                         <div className="w-full max-w-[210mm] flex flex-col gap-4 mb-10">
-                            {/* 🔥 KERTAS PUTIH - TAPI TEXT-NYA ITEM DONG 🔥 */}
                             <div className="bg-white shadow-2xl min-h-[297mm] rounded-xl overflow-hidden ring-1 ring-zinc-700/50 flex flex-col relative group text-black">
                                 <MenuBar editor={editor} onImageUpload={handleImageUpload} />
-                                {/* Tambahin class text-black di sini juga biar double lock */}
                                 <div className="p-[2.5cm] min-h-[25cm] cursor-text flex-1 text-black" onClick={() => editor?.chain().focus().run()}>
                                     <EditorContent editor={editor} />
                                 </div>
-                                
                                 <div className="absolute bottom-4 right-4 bg-zinc-900/80 backdrop-blur-sm border border-zinc-700 px-3 py-1 rounded-full text-xs font-mono text-zinc-400 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity select-none">
                                     {wordCount} Kata
                                 </div>
@@ -467,14 +521,14 @@ export default function Edit({ auth, laporan }) {
                             
                             <div className="flex justify-between items-center px-2">
                                 {prevSection ? (
-                                    <button onClick={() => setActiveSection(prevSection)} className="group flex flex-col items-start gap-1 p-3 rounded-lg hover:bg-zinc-900 hover:shadow-md transition-all text-zinc-500 hover:text-indigo-400">
+                                    <button onClick={() => handleSwitchSection(prevSection.id)} className="group flex flex-col items-start gap-1 p-3 rounded-lg hover:bg-zinc-900 hover:shadow-md transition-all text-zinc-500 hover:text-indigo-400">
                                         <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1"><Icons.ArrowLeft/> Sebelumnya</span>
                                         <span className="text-sm font-semibold text-zinc-300 group-hover:text-indigo-300 max-w-[200px] truncate">{prevSection.title}</span>
                                     </button>
                                 ) : <div/>}
 
                                 {nextSection ? (
-                                    <button onClick={() => setActiveSection(nextSection)} className="group flex flex-col items-end gap-1 p-3 rounded-lg hover:bg-zinc-900 hover:shadow-md transition-all text-zinc-500 hover:text-indigo-400">
+                                    <button onClick={() => handleSwitchSection(nextSection.id)} className="group flex flex-col items-end gap-1 p-3 rounded-lg hover:bg-zinc-900 hover:shadow-md transition-all text-zinc-500 hover:text-indigo-400">
                                         <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1">Selanjutnya <Icons.ArrowRight/></span>
                                         <span className="text-sm font-semibold text-zinc-300 group-hover:text-indigo-300 max-w-[200px] truncate">{nextSection.title}</span>
                                     </button>

@@ -18,50 +18,73 @@ const gameTypeColors = {
     quiz: 'from-amber-500 to-yellow-600',
 };
 
+// [UPDATE] GameCard dengan Split Button (Materi vs Main)
 const GameCard = ({ game }) => {
     const icon = gameTypeIcons[game.game_type] || '🎮';
     const gradient = gameTypeColors[game.game_type] || 'from-zinc-500 to-zinc-600';
 
     return (
-        <Link
-            href={route('questify.show', game.slug)}
-            className="group relative flex flex-col gap-3 p-6 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/10 hover:border-indigo-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(79,70,229,0.1)] overflow-hidden"
-        >
-            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
+        <div className="group relative flex flex-col gap-0 bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-white/10 hover:border-indigo-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(79,70,229,0.1)] overflow-hidden">
             
-            <div className="relative flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-2xl shadow-lg shadow-black/20 ring-1 ring-white/10`}>
-                        {icon}
+            {/* Header & Deskripsi */}
+            <div className="p-6 pb-4 flex flex-col gap-3 flex-1 relative">
+                <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500 pointer-events-none`}></div>
+                
+                <div className="relative flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-2xl shadow-lg shadow-black/20 ring-1 ring-white/10`}>
+                            {icon}
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-lg text-zinc-100 group-hover:text-white transition-colors">
+                                {game.title}
+                            </h4>
+                            <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-zinc-400 rounded-md">
+                                {game.game_type?.toUpperCase()}
+                            </span>
+                        </div>
                     </div>
-                    <div>
-                        <h4 className="font-bold text-lg text-zinc-100 group-hover:text-white transition-colors">
-                            {game.title}
-                        </h4>
-                        <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-zinc-400 rounded-md">
-                            {game.game_type?.toUpperCase()}
-                        </span>
-                    </div>
+                    <span className="px-3 py-1 text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                        {game.levels_count ?? 0} Level
+                    </span>
                 </div>
-                <span className="px-3 py-1 text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
-                    {game.levels_count ?? 0} Level
-                </span>
+                
+                <p className="relative text-sm text-zinc-400 line-clamp-2 leading-relaxed">{game.description}</p>
             </div>
             
-            <p className="relative text-sm text-zinc-400 line-clamp-2 leading-relaxed">{game.description}</p>
-            
-            <div className="relative flex items-center justify-between mt-2 pt-3 border-t border-white/5">
-                <span className="text-xs text-zinc-500 font-medium">Siap bermain?</span>
-                <div className="flex items-center gap-1 text-indigo-400 group-hover:translate-x-1 transition-transform group-hover:text-indigo-300">
-                    <span className="text-sm font-bold">Start</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                </div>
+            {/* [BARU] SPLIT ACTION BUTTONS */}
+            <div className="grid grid-cols-2 border-t border-white/10 divide-x divide-white/10 bg-black/20">
+                
+                {/* Tombol MATERI (Kiri) */}
+                <Link
+                    href={route('questify.learning', game.slug)}
+                    className="flex flex-col items-center justify-center py-4 hover:bg-blue-600/10 transition-colors group/learn relative overflow-hidden"
+                >
+                    <div className="absolute inset-0 bg-blue-500/5 translate-y-full group-hover/learn:translate-y-0 transition-transform duration-300"></div>
+                    <span className="text-xl mb-1 relative z-10 group-hover/learn:scale-110 transition-transform">📘</span>
+                    <span className="text-[10px] font-bold text-zinc-400 group-hover/learn:text-blue-400 uppercase tracking-widest relative z-10">
+                        Materi
+                    </span>
+                </Link>
+
+                {/* Tombol MAIN (Kanan) */}
+                <Link
+                    href={route('questify.show', game.slug)}
+                    className="flex flex-col items-center justify-center py-4 hover:bg-purple-600/10 transition-colors group/play relative overflow-hidden"
+                >
+                    <div className="absolute inset-0 bg-purple-500/5 translate-y-full group-hover/play:translate-y-0 transition-transform duration-300"></div>
+                    <span className="text-xl mb-1 relative z-10 group-hover/play:scale-110 transition-transform">🎮</span>
+                    <span className="text-[10px] font-bold text-zinc-400 group-hover/play:text-purple-400 uppercase tracking-widest relative z-10">
+                        Main
+                    </span>
+                </Link>
+
             </div>
-        </Link>
+        </div>
     );
 };
+
+// ... (SISA KODE SAMA PERSIS DENGAN YANG LAMA) ...
 
 const TopicCard = ({ topic }) => (
     <div className="bg-[#18181b]/60 backdrop-blur-sm rounded-3xl border border-white/5 p-6 sm:p-8 hover:border-white/10 transition-colors relative overflow-hidden">
@@ -139,7 +162,6 @@ export default function Lobby({ auth, majors = [] }) {
                     {majors.length ? (
                         <>
                             {/* Major Tabs - Cyberpunk Style */}
-                            {/* 🔥 PERBAIKAN: Ganti 'justify-center' jadi 'justify-start' biar bisa scroll dari kiri */}
                             <div className="flex gap-3 overflow-x-auto pb-4 px-4 scrollbar-hide justify-start">
                                 {majors.map((major) => {
                                     const isActive = major.slug === activeMajor;
@@ -159,7 +181,6 @@ export default function Lobby({ auth, majors = [] }) {
                                                     {major.topics?.length ?? 0} Mata Kuliah
                                                 </p>
                                             </div>
-                                            {/* Shine Effect */}
                                             {isActive && <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none"></div>}
                                         </button>
                                     );

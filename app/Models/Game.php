@@ -53,4 +53,9 @@ class Game extends Model
     {
         return 'slug'; // Gunakan slug di URL (/questify/{slug})
     }
+
+    public function learningMaterial()
+    {
+        return $this->hasOne(LearningMaterial::class);
+    }
 }

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\GameLevel;
 use App\Models\Major;
 use App\Models\User;
+use App\Models\LearningMaterial; // [WAJIB ADA]
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Arr;
 
@@ -35,11 +36,26 @@ class DatabaseSeeder extends Seeder
                         'games' => [
                             [
                                 'title' => 'Flexbox Chibi', 'slug' => 'flexbox-chibi', 'description' => 'Bantu Chibi bergerak dengan Flexbox.', 'game_type' => 'css',
+                                // [MATERI MANUAL]
+                                'learning_material' => [
+                                    'title' => 'Pengenalan Flexbox Layout',
+                                    'video_url' => 'https://www.youtube.com/watch?v=phWxA89Dy94',
+                                    'min_read_seconds' => 10,
+                                    'content' => '
+                                        <h3>Apa itu Flexbox?</h3>
+                                        <p>Flexbox (Flexible Box) adalah metode layout CSS untuk mengatur elemen dalam satu dimensi.</p>
+                                        <h4>Properti Penting:</h4>
+                                        <ul>
+                                            <li><code>justify-content</code>: Mengatur posisi horizontal (sumbu utama).</li>
+                                            <li><code>align-items</code>: Mengatur posisi vertikal (sumbu silang).</li>
+                                            <li><code>flex-direction</code>: Mengatur arah elemen (baris/kolom).</li>
+                                        </ul>'
+                                ],
                                 'levels' => [
                                     [
                                         'level' => 1, 'question' => 'Misi 1: Ke Kanan', 
                                         'instruction' => 'Pindahkan Chibi ke kanan untuk mengambil es krim.', 
-                                        'hint' => "Gunakan properti untuk mengatur posisi horizontal (main-axis). Kita ingin item berada di ujung akhir.",
+                                        'hint' => "Gunakan properti untuk mengatur posisi horizontal (main-axis) ke 'flex-end'.",
                                         'setup_html' => '<div style="display:flex;align-items:center;justify-content:flex-start;width:100%;height:160px;padding:1rem;background:#eef2ff;"><img src="/images/chibi-default.png" alt="Chibi" style="width:72px;height:72px;"></div>',
                                         'initial_code' => 'display:flex; justify-content:flex-start; align-items:center;',
                                         'correct_answer' => 'justify-content: flex-end;', 'target_css' => 'justify-content: flex-end;'
@@ -47,7 +63,7 @@ class DatabaseSeeder extends Seeder
                                     [
                                         'level' => 2, 'question' => 'Misi 2: Ke Bawah', 
                                         'instruction' => 'Pindahkan Chibi ke bawah secara vertikal.', 
-                                        'hint' => "Untuk sumbu silang (vertikal), gunakan properti 'align-items'. Cari nilai yang berarti 'bawah' atau 'akhir'.",
+                                        'hint' => "Untuk sumbu silang (vertikal), gunakan properti 'align-items' ke 'flex-end'.",
                                         'setup_html' => '<div style="display:flex;align-items:flex-start;justify-content:flex-start;width:100%;height:200px;padding:1rem;background:#eef2ff;"><img src="/images/chibi-default.png" alt="Chibi" style="width:72px;height:72px;"></div>',
                                         'initial_code' => 'display:flex; align-items:flex-start; justify-content:flex-start;',
                                         'correct_answer' => 'align-items: flex-end;', 'target_css' => 'align-items: flex-end;'
@@ -55,22 +71,22 @@ class DatabaseSeeder extends Seeder
                                     [
                                         'level' => 3, 'question' => 'Misi 3: Balik Arah', 
                                         'instruction' => 'Balik urutan Chibi agar bisa mengambil item di kirinya.', 
-                                        'hint' => "Secara default urutan flex adalah 'row'. Gunakan properti 'flex-direction' dengan nilai yang membalikkan arah tersebut.",
+                                        'hint' => "Gunakan properti 'flex-direction' dengan nilai 'row-reverse'.",
                                         'setup_html' => '<div style="display:flex;flex-direction:row;align-items:center;justify-content:flex-start;width:100%;height:160px;padding:1rem;background:#eef2ff;"><img src="/images/chibi-default.png" alt="Chibi" style="width:72px;height:72px;"><img src="/images/ice-cream.png" alt="Target" style="width:64px;height:64px;"></div>',
                                         'initial_code' => 'display:flex; flex-direction:row; align-items:center; justify-content:flex-start;',
                                         'correct_answer' => 'flex-direction: row-reverse;', 'target_css' => 'flex-direction: row-reverse;'
                                     ],
                                     [
                                         'level' => 4, 'question' => 'Misi 4: Pusat Perhatian', 
-                                        'instruction' => 'Letakkan Chibi tepat di tengah-tengah panggung (tengah horizontal DAN vertikal).', 
-                                        'hint' => "Kombinasikan 'justify-content' dan 'align-items'. Keduanya membutuhkan nilai yang sama untuk posisi tengah.",
+                                        'instruction' => 'Letakkan Chibi tepat di tengah-tengah panggung (Horizontal & Vertikal).', 
+                                        'hint' => "Set 'justify-content' dan 'align-items' keduanya ke 'center'.",
                                         'initial_code' => 'display:flex; align-items:flex-start; justify-content:flex-start;',
                                         'correct_answer' => 'justify-content: center; align-items: center;', 'target_css' => 'justify-content: center; align-items: center;'
                                     ],
                                     [
                                         'level' => 5, 'question' => 'Misi 5: Jaga Jarak', 
-                                        'instruction' => 'Berikan jarak yang merata di antara Chibi dan Es Krim agar tidak berdempetan.', 
-                                        'hint' => "Gunakan 'justify-content' dengan nilai yang mendistribusikan ruang kosong di ANTARA item.",
+                                        'instruction' => 'Berikan jarak yang merata di antara Chibi dan Es Krim.', 
+                                        'hint' => "Gunakan 'justify-content: space-between'.",
                                         'initial_code' => 'display:flex;',
                                         'correct_answer' => 'justify-content: space-between;', 'target_css' => 'justify-content: space-between;'
                                     ]
@@ -83,58 +99,33 @@ class DatabaseSeeder extends Seeder
                         'games' => [
                             [
                                 'title' => 'SQL Detective', 'slug' => 'sql-detective', 'description' => 'Investigasi data menggunakan SQL.', 'game_type' => 'sql',
+                                // [MATERI MANUAL]
+                                'learning_material' => [
+                                    'title' => 'Dasar SQL: SELECT & WHERE',
+                                    'video_url' => 'https://www.youtube.com/watch?v=7S_tz1z_5bA',
+                                    'min_read_seconds' => 15,
+                                    'content' => '
+                                        <h3>Perintah Dasar SQL</h3>
+                                        <p>Gunakan <strong>SELECT</strong> untuk memilih kolom dan <strong>FROM</strong> untuk memilih tabel.</p>
+                                        <pre class="bg-black text-green-400 p-2 rounded mb-2">SELECT * FROM users;</pre>
+                                        <p>Gunakan <strong>WHERE</strong> untuk memfilter data.</p>'
+                                ],
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Cek Seluruh Data', 'instruction' => 'Tampilkan semua kolom dari tabel users.', 'hint' => 'Gunakan SELECT diikuti dengan simbol wildcard untuk "semua kolom".', 'initial_code' => 'SELECT  FROM users;', 'correct_answer' => 'SELECT * FROM users;'],
-                                    ['level' => 2, 'question' => 'Pilih Kolom', 'instruction' => 'Hanya tampilkan nama (`name`) dan email (`email`) dari tabel `users`.', 'hint' => 'Sebutkan nama-nama kolom yang ingin diambil secara spesifik, pisahkan dengan koma.', 'initial_code' => 'SELECT  FROM users;', 'correct_answer' => 'SELECT name, email FROM users;'],
-                                    ['level' => 3, 'question' => 'Filter Data', 'instruction' => 'Cari user yang statusnya "active" saja.', 'hint' => 'Gunakan klausa WHERE untuk menyaring baris data berdasarkan kondisi tertentu.', 'initial_code' => 'SELECT * FROM users;', 'correct_answer' => "SELECT * FROM users WHERE status = 'active';"],
-                                    ['level' => 4, 'question' => 'Hitung Data', 'instruction' => 'Hitung berapa banyak total user yang terdaftar.', 'hint' => 'Gunakan fungsi agregasi SQL untuk menghitung jumlah baris.', 'initial_code' => 'SELECT  FROM users;', 'correct_answer' => 'SELECT COUNT(*) FROM users;'],
-                                    ['level' => 5, 'question' => 'Urutkan Data', 'instruction' => 'Urutkan daftar user berdasarkan nama dari A ke Z.', 'hint' => 'Gunakan klausa ORDER BY. Secara default urutannya menaik (Ascending).', 'initial_code' => 'SELECT * FROM users;', 'correct_answer' => 'SELECT * FROM users ORDER BY name ASC;'],
+                                    ['level' => 1, 'question' => 'Cek Seluruh Data', 'instruction' => 'Tampilkan semua kolom dari tabel users.', 'hint' => 'Gunakan tanda bintang (*) setelah SELECT.', 'initial_code' => 'SELECT  FROM users;', 'correct_answer' => 'SELECT * FROM users;'],
+                                    ['level' => 2, 'question' => 'Pilih Kolom', 'instruction' => 'Hanya tampilkan nama (`name`) dan email (`email`) dari tabel `users`.', 'hint' => 'Tulis nama kolom dipisahkan koma.', 'initial_code' => 'SELECT  FROM users;', 'correct_answer' => 'SELECT name, email FROM users;'],
+                                    ['level' => 3, 'question' => 'Filter Data', 'instruction' => 'Cari user yang statusnya "active" saja.', 'hint' => "Gunakan WHERE status = 'active'.", 'initial_code' => 'SELECT * FROM users;', 'correct_answer' => "SELECT * FROM users WHERE status = 'active';"],
+                                    ['level' => 4, 'question' => 'Hitung Data', 'instruction' => 'Hitung berapa banyak total user yang terdaftar.', 'hint' => 'Gunakan fungsi COUNT(*).', 'initial_code' => 'SELECT  FROM users;', 'correct_answer' => 'SELECT COUNT(*) FROM users;'],
+                                    ['level' => 5, 'question' => 'Urutkan Data', 'instruction' => 'Urutkan daftar user berdasarkan nama dari A ke Z.', 'hint' => 'Gunakan ORDER BY name ASC.', 'initial_code' => 'SELECT * FROM users;', 'correct_answer' => 'SELECT * FROM users ORDER BY name ASC;'],
                                 ]
                             ],
-                            // 🔥 LOGIC CASE FILES
                             [
                                 'title' => 'Logic Case Files', 'slug' => 'logic-case-files', 'description' => 'Pecahkan misteri kriminal dengan SQL.', 'game_type' => 'sql',
                                 'levels' => [
-                                    [
-                                        'level' => 1, 'question' => 'Kasus 1: Lokasi Kejadian', 
-                                        'instruction' => 'Detektif! Kejahatan terjadi di "SQL City Park". Cek laporan TKP di tabel `crime_scene_reports`.', 
-                                        'hint' => "Kita perlu memfilter data di tabel laporan berdasarkan kolom `city` yang sesuai dengan nama taman.",
-                                        'setup_html' => '<h4>Tabel: crime_scene_reports</h4><p>Kolom: date, type, description, city</p>',
-                                        'initial_code' => "SELECT * FROM crime_scene_reports WHERE ...", 
-                                        'correct_answer' => "SELECT * FROM crime_scene_reports WHERE city = 'SQL City Park';"
-                                    ],
-                                    [
-                                        'level' => 2, 'question' => 'Kasus 2: Cari Saksi', 
-                                        'instruction' => 'Ada dua saksi. Satu tinggal di "Northwestern Dr", satu lagi bernama "Annabel". Temukan mereka di tabel `person`!', 
-                                        'hint' => "Kita mencari seseorang yang memenuhi SALAH SATU dari dua kondisi tersebut. Gunakan operator logika yang sesuai.",
-                                        'setup_html' => '<h4>Tabel: person</h4><p>Kolom: id, name, license_id, address_street_name</p>',
-                                        'initial_code' => "SELECT * FROM person WHERE ...", 
-                                        'correct_answer' => "SELECT * FROM person WHERE address_street_name = 'Northwestern Dr' OR name = 'Annabel';"
-                                    ],
-                                    [
-                                        'level' => 3, 'question' => 'Kasus 3: Interogasi',
-                                        'instruction' => 'Saksi dengan ID 14887 mencurigakan. Cek transkrip wawancaranya di tabel `interview`.',
-                                        'hint' => 'Filter tabel wawancara berdasarkan kolom `person_id` milik saksi tersebut.',
-                                        'setup_html' => '<h4>Tabel: interview</h4><p>Kolom: person_id, transcript</p>',
-                                        'initial_code' => "SELECT * FROM interview WHERE ...",
-                                        'correct_answer' => "SELECT * FROM interview WHERE person_id = 14887;",
-                                    ],
-                                    [
-                                        'level' => 4, 'question' => 'Kasus 4: Gym Membership',
-                                        'instruction' => 'Pelaku adalah member gym dengan status "gold" dan namanya dimulai dengan "Joe". Cek tabel `get_fit_now_member`.',
-                                        'hint' => 'Gunakan operator `AND` untuk dua syarat. Untuk pencarian pola nama, gunakan `LIKE` dan simbol persen (%).',
-                                        'setup_html' => '<h4>Tabel: get_fit_now_member</h4><p>Kolom: id, name, membership_status</p>',
-                                        'initial_code' => "SELECT * FROM get_fit_now_member WHERE ...",
-                                        'correct_answer' => "SELECT * FROM get_fit_now_member WHERE membership_status = 'gold' AND name LIKE 'Joe%';",
-                                    ],
-                                    [
-                                        'level' => 5, 'question' => 'Kasus 5: Tangkap Pelaku',
-                                        'instruction' => 'Kita menemukan ID pelaku: 28819. Tampilkan detail lengkapnya dari tabel `person`.',
-                                        'hint' => 'Cukup filter tabel person berdasarkan Primary Key (ID) yang ditemukan.',
-                                        'setup_html' => '<h4>Tabel: person</h4><p>Kolom: id, name, address_number, address_street_name</p>',
-                                        'initial_code' => "SELECT * FROM person WHERE ...",
-                                        'correct_answer' => "SELECT * FROM person WHERE id = 28819;",
-                                    ],
+                                    ['level' => 1, 'question' => 'Kasus 1: Lokasi Kejadian', 'instruction' => 'Cek laporan di "SQL City Park".', 'hint' => 'Filter kolom city pada tabel crime_scene_reports.', 'setup_html' => '<h4>Tabel: crime_scene_reports</h4>', 'initial_code' => "SELECT * FROM crime_scene_reports WHERE ...", 'correct_answer' => "SELECT * FROM crime_scene_reports WHERE city = 'SQL City Park';"],
+                                    ['level' => 2, 'question' => 'Kasus 2: Cari Saksi', 'instruction' => 'Saksi tinggal di "Northwestern Dr" ATAU bernama "Annabel".', 'hint' => 'Gunakan operator OR di dalam WHERE.', 'setup_html' => '<h4>Tabel: person</h4>', 'initial_code' => "SELECT * FROM person WHERE ...", 'correct_answer' => "SELECT * FROM person WHERE address_street_name = 'Northwestern Dr' OR name = 'Annabel';"],
+                                    ['level' => 3, 'question' => 'Kasus 3: Interogasi', 'instruction' => 'Cek transkrip wawancara saksi ID 14887.', 'hint' => 'Filter tabel interview berdasarkan person_id.', 'setup_html' => '<h4>Tabel: interview</h4>', 'initial_code' => "SELECT * FROM interview WHERE ...", 'correct_answer' => "SELECT * FROM interview WHERE person_id = 14887;"],
+                                    ['level' => 4, 'question' => 'Kasus 4: Gym Membership', 'instruction' => 'Pelaku member "gold" DAN namanya mulai "Joe".', 'hint' => 'Gunakan AND. Untuk nama gunakan LIKE "Joe%".', 'setup_html' => '<h4>Tabel: get_fit_now_member</h4>', 'initial_code' => "SELECT * FROM get_fit_now_member WHERE ...", 'correct_answer' => "SELECT * FROM get_fit_now_member WHERE membership_status = 'gold' AND name LIKE 'Joe%';"],
+                                    ['level' => 5, 'question' => 'Kasus 5: Tangkap Pelaku', 'instruction' => 'Tampilkan data lengkap ID 28819.', 'hint' => 'Select tabel person where id = 28819.', 'setup_html' => '<h4>Tabel: person</h4>', 'initial_code' => "SELECT * FROM person WHERE ...", 'correct_answer' => "SELECT * FROM person WHERE id = 28819;"],
                                 ]
                             ]
                         ]
@@ -144,12 +135,27 @@ class DatabaseSeeder extends Seeder
                         'games' => [
                             [
                                 'title' => 'Subnet Calculator', 'slug' => 'subnet-calculator', 'description' => 'Hitung jumlah host dalam subnet mask.', 'game_type' => 'math',
+                                // [MATERI MANUAL]
+                                'learning_material' => [
+                                    'title' => 'Konsep Subnetting Dasar',
+                                    'min_read_seconds' => 10,
+                                    'content' => '
+                                        <h3>Menghitung Jumlah Host</h3>
+                                        <p>Rumus: <strong>(2 ^ n) - 2</strong></p>
+                                        <p>Dimana <em>n</em> adalah jumlah bit host (32 - prefix).</p>
+                                        <p>Contoh Prefix /24:</p>
+                                        <ul>
+                                            <li>Bit Network: 24</li>
+                                            <li>Bit Host: 32 - 24 = 8</li>
+                                            <li>Jumlah Host: (2 pangkat 8) - 2 = 254</li>
+                                        </ul>'
+                                ],
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Subnet /24', 'instruction' => 'Berapa jumlah host yang tersedia di subnet /24?', 'hint' => 'Gunakan rumus 2 pangkat n dikurangi 2, dimana n adalah sisa bit host.', 'correct_answer' => '254'],
-                                    ['level' => 2, 'question' => 'Subnet /25', 'instruction' => 'Berapa jumlah host yang tersedia di subnet /25?', 'hint' => 'Total bit IPv4 adalah 32. Kurangi dengan prefix untuk mendapatkan bit host.', 'correct_answer' => '126'],
-                                    ['level' => 3, 'question' => 'Subnet /26', 'instruction' => 'Berapa jumlah host yang tersedia di subnet /26?', 'hint' => 'Bit host = 32 - 26. Hitung 2 pangkat bit host, lalu kurangi 2.', 'correct_answer' => '62'],
-                                    ['level' => 4, 'question' => 'IP Pertama /24', 'instruction' => 'Jika Network ID 192.168.1.0/24, berapa IP valid pertama?', 'hint' => 'IP pertama selalu Network ID ditambah 1.', 'correct_answer' => '192.168.1.1'],
-                                    ['level' => 5, 'question' => 'IP Terakhir /24', 'instruction' => 'Jika Network ID 192.168.1.0/24, berapa IP valid terakhir?', 'hint' => 'Satu angka sebelum IP Broadcast.', 'correct_answer' => '192.168.1.254'],
+                                    ['level' => 1, 'question' => 'Subnet /24', 'instruction' => 'Berapa jumlah host yang tersedia di subnet /24?', 'hint' => 'Rumus: (2 pangkat 8) dikurang 2.', 'correct_answer' => '254'],
+                                    ['level' => 2, 'question' => 'Subnet /25', 'instruction' => 'Berapa jumlah host yang tersedia di subnet /25?', 'hint' => 'Sisa bit = 32-25 = 7. Hitung (2^7) - 2.', 'correct_answer' => '126'],
+                                    ['level' => 3, 'question' => 'Subnet /26', 'instruction' => 'Berapa jumlah host yang tersedia di subnet /26?', 'hint' => 'Sisa bit = 6. Hitung (2^6) - 2.', 'correct_answer' => '62'],
+                                    ['level' => 4, 'question' => 'IP Pertama /24', 'instruction' => 'Jika Network ID 192.168.1.0/24, berapa IP valid pertama?', 'hint' => 'IP pertama = Network ID + 1.', 'correct_answer' => '192.168.1.1'],
+                                    ['level' => 5, 'question' => 'IP Terakhir /24', 'instruction' => 'Jika Network ID 192.168.1.0/24, berapa IP valid terakhir?', 'hint' => 'IP Broadcast dikurang 1.', 'correct_answer' => '192.168.1.254'],
                                 ]
                             ]
                         ]
@@ -159,6 +165,16 @@ class DatabaseSeeder extends Seeder
                         'games' => [
                             [
                                 'title' => 'Caesar Cipher', 'slug' => 'caesar-cipher', 'description' => 'Decrypt pesan rahasia.', 'game_type' => 'logic',
+                                // [MATERI MANUAL]
+                                'learning_material' => [
+                                    'title' => 'Teknik Enkripsi Caesar',
+                                    'min_read_seconds' => 8,
+                                    'content' => '
+                                        <h3>Algoritma Substitusi Sederhana</h3>
+                                        <p>Caesar Cipher bekerja dengan menggeser huruf dalam alfabet.</p>
+                                        <p>Contoh Geser +1: A menjadi B, B menjadi C.</p>
+                                        <p>Untuk memecahkannya (Decrypt), cukup geser ke arah sebaliknya.</p>'
+                                ],
                                 'levels' => [
                                     ['level' => 1, 'question' => 'Shift -1', 'instruction' => 'Decrypt teks "IFMMP" dengan geser mundur 1 huruf.', 'hint' => 'Huruf sebelum I adalah H, sebelum F adalah E.', 'correct_answer' => 'HELLO'],
                                     ['level' => 2, 'question' => 'Shift -3', 'instruction' => 'Decrypt teks "KHOOR" dengan geser mundur 3 huruf.', 'hint' => 'Hitung mundur 3 langkah di alfabet dari setiap huruf.', 'correct_answer' => 'HELLO'],
@@ -174,6 +190,19 @@ class DatabaseSeeder extends Seeder
                         'games' => [
                             [
                                 'title' => 'Linux Command', 'slug' => 'linux-command', 'description' => 'Uji pengetahuanmu tentang terminal Linux.', 'game_type' => 'quiz',
+                                // [MATERI MANUAL]
+                                'learning_material' => [
+                                    'title' => 'Perintah Dasar Terminal Linux',
+                                    'min_read_seconds' => 5,
+                                    'content' => '
+                                        <h3>Perintah Wajib:</h3>
+                                        <ul>
+                                            <li><code>ls</code> : List (lihat isi folder)</li>
+                                            <li><code>cd</code> : Change Directory (pindah folder)</li>
+                                            <li><code>mkdir</code> : Make Directory (bikin folder)</li>
+                                            <li><code>rm</code> : Remove (hapus file)</li>
+                                        </ul>'
+                                ],
                                 'levels' => [
                                     ['level' => 1, 'question' => 'List Directory', 'instruction' => 'Perintah untuk menampilkan isi direktori?', 'hint' => 'Singkatan dari "list".', 'correct_answer' => 'ls'],
                                     ['level' => 2, 'question' => 'Make Directory', 'instruction' => 'Perintah untuk membuat folder baru?', 'hint' => 'Singkatan dari "make directory".', 'correct_answer' => 'mkdir'],
@@ -188,7 +217,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 2. ILMU KOMPUTER
+            // 2. ILMU KOMPUTER (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Ilmu Komputer',
@@ -201,7 +230,7 @@ class DatabaseSeeder extends Seeder
                             [
                                 'title' => 'Derivative Dash', 'slug' => 'derivative-dash', 'description' => 'Kuis cepat turunan fungsi.', 'game_type' => 'math',
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Turunan x^2', 'instruction' => 'Turunan dari f(x) = x^2?', 'hint' => 'Gunakan aturan pangkat: pangkat turun ke depan, pangkat dikurang 1.', 'correct_answer' => '2x'],
+                                    ['level' => 1, 'question' => 'Turunan x^2', 'instruction' => 'Turunan dari f(x) = x^2?', 'hint' => 'Pangkat turun ke depan, pangkat dikurang 1.', 'correct_answer' => '2x'],
                                     ['level' => 2, 'question' => 'Turunan 3x^3', 'instruction' => 'Turunan dari f(x) = 3x^3?', 'hint' => 'Kalikan koefisien dengan pangkat lama.', 'correct_answer' => '9x^2'],
                                     ['level' => 3, 'question' => 'Turunan 5x', 'instruction' => 'Turunan dari f(x) = 5x?', 'hint' => 'Turunan dari konstanta kali x adalah konstantanya.', 'correct_answer' => '5'],
                                     ['level' => 4, 'question' => 'Penjumlahan', 'instruction' => 'Turunan dari f(x) = x^2 + 3x?', 'hint' => 'Turunkan masing-masing suku secara terpisah.', 'correct_answer' => '2x + 3'],
@@ -274,7 +303,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 3. SISTEM INFORMASI
+            // 3. SISTEM INFORMASI (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Sistem Informasi',
@@ -291,7 +320,7 @@ class DatabaseSeeder extends Seeder
                                     ['level' => 2, 'question' => 'Paralel', 'instruction' => 'Task A (5 hari) dan Task B (3 hari) berjalan bersamaan. Total durasi?', 'hint' => 'Ambil durasi terpanjang di jalur paralel.', 'correct_answer' => '5'],
                                     ['level' => 3, 'question' => 'Jalur Panjang', 'instruction' => 'A(2) -> B(3) -> C(4). Total?', 'hint' => 'Jumlahkan semua.', 'correct_answer' => '9'],
                                     ['level' => 4, 'question' => 'Campuran', 'instruction' => 'A(3) dan B(2) paralel, dilanjut C(4). Total?', 'hint' => 'Max(A, B) + C.', 'correct_answer' => '7'],
-                                    ['level' => 5, 'question' => 'Critical Path', 'instruction' => 'Jalur 1: 8 hari. Jalur 2: 7 hari. Berapa critical path?', 'hint' => 'Critical path adalah jalur terpanjang yang menentukan durasi proyek.', 'correct_answer' => '8'],
+                                    ['level' => 5, 'question' => 'Critical Path', 'instruction' => 'Jalur 1: 8 hari. Jalur 2: 7 hari. Berapa critical path?', 'hint' => 'Critical path adalah jalur terpanjang.', 'correct_answer' => '8'],
                                 ]
                             ]
                         ]
@@ -315,7 +344,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 4. EKONOMI & BISNIS
+            // 4. EKONOMI & BISNIS (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Ekonomi & Bisnis',
@@ -343,11 +372,11 @@ class DatabaseSeeder extends Seeder
                             [
                                 'title' => 'Marketing Mix', 'slug' => 'marketing-mix', 'description' => 'Tebak elemen 4P.', 'game_type' => 'quiz',
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Barang', 'instruction' => 'Elemen P yang berkaitan dengan barang/jasa?', 'hint' => 'Sesuatu yang dijual.', 'correct_answer' => 'Product'],
-                                    ['level' => 2, 'question' => 'Harga', 'instruction' => 'Elemen P tentang biaya?', 'hint' => 'Uang yang dibayar.', 'correct_answer' => 'Price'],
-                                    ['level' => 3, 'question' => 'Lokasi', 'instruction' => 'Elemen P tentang distribusi?', 'hint' => 'Tempat jualan.', 'correct_answer' => 'Place'],
-                                    ['level' => 4, 'question' => 'Iklan', 'instruction' => 'Elemen P tentang komunikasi?', 'hint' => 'Cara agar orang tahu.', 'correct_answer' => 'Promotion'],
-                                    ['level' => 5, 'question' => 'SDM', 'instruction' => 'Elemen P tambahan tentang orang?', 'hint' => 'Manusia yang melayani.', 'correct_answer' => 'People'],
+                                    ['level' => 1, 'question' => 'Barang', 'instruction' => 'Elemen P yang berkaitan dengan barang/jasa?', 'hint' => 'Sesuatu yang dijual (Bhs Inggris).', 'correct_answer' => 'Product'],
+                                    ['level' => 2, 'question' => 'Harga', 'instruction' => 'Elemen P tentang biaya?', 'hint' => 'Uang yang dibayar (Bhs Inggris).', 'correct_answer' => 'Price'],
+                                    ['level' => 3, 'question' => 'Lokasi', 'instruction' => 'Elemen P tentang distribusi?', 'hint' => 'Tempat jualan (Bhs Inggris).', 'correct_answer' => 'Place'],
+                                    ['level' => 4, 'question' => 'Iklan', 'instruction' => 'Elemen P tentang komunikasi?', 'hint' => 'Cara promosi (Bhs Inggris).', 'correct_answer' => 'Promotion'],
+                                    ['level' => 5, 'question' => 'SDM', 'instruction' => 'Elemen P tambahan tentang orang?', 'hint' => 'Manusia yang melayani (Bhs Inggris).', 'correct_answer' => 'People'],
                                 ]
                             ]
                         ]
@@ -356,7 +385,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 5. PSIKOLOGI
+            // 5. PSIKOLOGI (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Psikologi',
@@ -370,10 +399,10 @@ class DatabaseSeeder extends Seeder
                                 'title' => 'Memory Logic', 'slug' => 'memory-logic', 'description' => 'Fakta tentang memori.', 'game_type' => 'quiz',
                                 'levels' => [
                                     ['level' => 1, 'question' => 'STM', 'instruction' => 'Berapa detik durasi rata-rata Short Term Memory?', 'hint' => 'Sekitar 20-30 detik.', 'correct_answer' => '20'],
-                                    ['level' => 2, 'question' => 'Kapasitas', 'instruction' => 'Berapa "chunk" kapasitas memori jangka pendek?', 'hint' => 'Angka ajaib Miller (7).', 'correct_answer' => '7'],
-                                    ['level' => 3, 'question' => 'Input', 'instruction' => 'Proses memasukkan info ke memori?', 'hint' => 'Istilahnya Encoding.', 'correct_answer' => 'Encoding'],
-                                    ['level' => 4, 'question' => 'Simpan', 'instruction' => 'Proses mempertahankan info?', 'hint' => 'Storage.', 'correct_answer' => 'Storage'],
-                                    ['level' => 5, 'question' => 'Output', 'instruction' => 'Proses memanggil ingatan?', 'hint' => 'Retrieval.', 'correct_answer' => 'Retrieval'],
+                                    ['level' => 2, 'question' => 'Kapasitas', 'instruction' => 'Berapa "chunk" kapasitas memori jangka pendek?', 'hint' => 'Angka ajaib Miller.', 'correct_answer' => '7'],
+                                    ['level' => 3, 'question' => 'Input', 'instruction' => 'Proses memasukkan info ke memori?', 'hint' => 'Istilahnya E...', 'correct_answer' => 'Encoding'],
+                                    ['level' => 4, 'question' => 'Simpan', 'instruction' => 'Proses mempertahankan info?', 'hint' => 'S...', 'correct_answer' => 'Storage'],
+                                    ['level' => 5, 'question' => 'Output', 'instruction' => 'Proses memanggil ingatan?', 'hint' => 'R...', 'correct_answer' => 'Retrieval'],
                                 ]
                             ]
                         ]
@@ -382,7 +411,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 6. SASTRA INGGRIS
+            // 6. SASTRA INGGRIS (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Sastra Inggris',
@@ -408,7 +437,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 7. HUKUM
+            // 7. HUKUM (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Hukum',
@@ -421,9 +450,9 @@ class DatabaseSeeder extends Seeder
                             [
                                 'title' => 'Criminal Logic', 'slug' => 'criminal-logic', 'description' => 'Istilah hukum pidana.', 'game_type' => 'quiz',
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Asas Utama', 'instruction' => 'Tiada pidana tanpa aturan sebelumnya. Asas apa?', 'hint' => 'Legalitas.', 'correct_answer' => 'Legalitas'],
-                                    ['level' => 2, 'question' => 'Niat', 'instruction' => 'Istilah untuk niat jahat/sengaja?', 'hint' => 'Dolus.', 'correct_answer' => 'Dolus'],
-                                    ['level' => 3, 'question' => 'Lalai', 'instruction' => 'Istilah untuk kelalaian?', 'hint' => 'Culpa.', 'correct_answer' => 'Culpa'],
+                                    ['level' => 1, 'question' => 'Asas Utama', 'instruction' => 'Tiada pidana tanpa aturan sebelumnya. Asas apa?', 'hint' => 'Asas L...', 'correct_answer' => 'Legalitas'],
+                                    ['level' => 2, 'question' => 'Niat', 'instruction' => 'Istilah untuk niat jahat/sengaja?', 'hint' => 'Bahasa latin D...', 'correct_answer' => 'Dolus'],
+                                    ['level' => 3, 'question' => 'Lalai', 'instruction' => 'Istilah untuk kelalaian?', 'hint' => 'Bahasa latin C...', 'correct_answer' => 'Culpa'],
                                     ['level' => 4, 'question' => 'Pembelaan', 'instruction' => 'Pembelaan terpaksa disebut?', 'hint' => 'Noodweer.', 'correct_answer' => 'Noodweer'],
                                     ['level' => 5, 'question' => 'Pasal', 'instruction' => 'Pasal KUHP pencurian biasa?', 'hint' => 'Angka 362.', 'correct_answer' => '362'],
                                 ]
@@ -434,7 +463,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 8. TEKNIK SIPIL
+            // 8. TEKNIK SIPIL (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Teknik Sipil',
@@ -447,7 +476,7 @@ class DatabaseSeeder extends Seeder
                             [
                                 'title' => 'Force Balance', 'slug' => 'force-balance', 'description' => 'Hitung keseimbangan.', 'game_type' => 'math',
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Reaksi Vertikal', 'instruction' => 'Beban 10kN ke bawah. Reaksi tumpuan?', 'hint' => 'Harus sama besar berlawanan arah.', 'correct_answer' => '10'],
+                                    ['level' => 1, 'question' => 'Reaksi Vertikal', 'instruction' => 'Beban 10kN ke bawah. Reaksi tumpuan?', 'hint' => 'Hukum Newton: Aksi = Reaksi.', 'correct_answer' => '10'],
                                     ['level' => 2, 'question' => 'Momen', 'instruction' => 'Gaya 5kN jarak 2m. Momen?', 'hint' => 'Gaya dikali Jarak.', 'correct_answer' => '10'],
                                     ['level' => 3, 'question' => 'Beban Merata', 'instruction' => 'q=2kN/m sepanjang 4m. Total?', 'hint' => 'q dikali panjang.', 'correct_answer' => '8'],
                                     ['level' => 4, 'question' => 'Tumpuan', 'instruction' => 'Balok 4m, beban tengah 10. Reaksi kiri?', 'hint' => 'Bagi dua.', 'correct_answer' => '5'],
@@ -460,7 +489,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 9. TEKNIK ELEKTRO
+            // 9. TEKNIK ELEKTRO (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Teknik Elektro',
@@ -473,11 +502,11 @@ class DatabaseSeeder extends Seeder
                             [
                                 'title' => 'Circuit Solver', 'slug' => 'circuit-solver-2', 'description' => 'Hitung V, I, R.', 'game_type' => 'math',
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Arus', 'instruction' => 'V=10, R=2. I?', 'hint' => 'I = V/R.', 'correct_answer' => '5'],
-                                    ['level' => 2, 'question' => 'Tegangan', 'instruction' => 'I=3, R=4. V?', 'hint' => 'V = I*R.', 'correct_answer' => '12'],
-                                    ['level' => 3, 'question' => 'Hambatan', 'instruction' => 'V=24, I=6. R?', 'hint' => 'R = V/I.', 'correct_answer' => '4'],
+                                    ['level' => 1, 'question' => 'Arus', 'instruction' => 'V=10, R=2. I?', 'hint' => 'I = V dibagi R.', 'correct_answer' => '5'],
+                                    ['level' => 2, 'question' => 'Tegangan', 'instruction' => 'I=3, R=4. V?', 'hint' => 'V = I dikali R.', 'correct_answer' => '12'],
+                                    ['level' => 3, 'question' => 'Hambatan', 'instruction' => 'V=24, I=6. R?', 'hint' => 'R = V dibagi I.', 'correct_answer' => '4'],
                                     ['level' => 4, 'question' => 'Seri', 'instruction' => 'R1=3, R2=5. Total?', 'hint' => 'Jumlahkan.', 'correct_answer' => '8'],
-                                    ['level' => 5, 'question' => 'Paralel', 'instruction' => 'R1=4, R2=4. Total?', 'hint' => 'Jika sama, bagi jumlahnya.', 'correct_answer' => '2'],
+                                    ['level' => 5, 'question' => 'Paralel', 'instruction' => 'R1=4, R2=4. Total?', 'hint' => 'Jika sama, bagi jumlahnya dengan 2.', 'correct_answer' => '2'],
                                 ]
                             ]
                         ]
@@ -486,7 +515,7 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 10. SAINS DATA
+            // 10. SAINS DATA (HINTS FIXED)
             // ==========================================
             [
                 'name' => 'Sains Data',
@@ -499,7 +528,7 @@ class DatabaseSeeder extends Seeder
                             [
                                 'title' => 'Stats Master', 'slug' => 'stats-master', 'description' => 'Mean, Median, Modus.', 'game_type' => 'math',
                                 'levels' => [
-                                    ['level' => 1, 'question' => 'Mean', 'instruction' => 'Rata-rata 2, 4, 6?', 'hint' => 'Jumlah dibagi banyak data.', 'correct_answer' => '4'],
+                                    ['level' => 1, 'question' => 'Mean', 'instruction' => 'Rata-rata 2, 4, 6?', 'hint' => 'Jumlah data dibagi 3.', 'correct_answer' => '4'],
                                     ['level' => 2, 'question' => 'Median', 'instruction' => 'Nilai tengah 1, 3, 5, 7, 9?', 'hint' => 'Angka di posisi tengah.', 'correct_answer' => '5'],
                                     ['level' => 3, 'question' => 'Mean Lanjut', 'instruction' => 'Rata-rata 10, 20, 30, 40?', 'hint' => 'Jumlah 100 dibagi 4.', 'correct_answer' => '25'],
                                     ['level' => 4, 'question' => 'Median Genap', 'instruction' => 'Median 2, 4, 6, 8?', 'hint' => 'Rata-rata dua angka tengah.', 'correct_answer' => '5'],
@@ -512,12 +541,10 @@ class DatabaseSeeder extends Seeder
             ],
 
             // ==========================================
-            // 11. KEDOKTERAN
+            // 11. KEDOKTERAN (HINTS FIXED)
             // ==========================================
             [
-                'name' => 'Kedokteran',
-                'slug' => 'kedokteran',
-                'description' => 'Kesehatan manusia.',
+                'name' => 'Kedokteran', 'slug' => 'kedokteran', 'description' => 'Kesehatan manusia.',
                 'topics' => [
                     [
                         'name' => 'Anatomi', 'slug' => 'anatomi', 'description' => 'Organ tubuh.',
@@ -538,16 +565,58 @@ class DatabaseSeeder extends Seeder
             ]
         ];
 
+        // LOGIC LOOPING (JANGAN DIUBAH)
         foreach ($structures as $majorData) {
             $major = Major::updateOrCreate(['slug' => $majorData['slug']], Arr::except($majorData, ['topics']));
+            
             foreach ($majorData['topics'] as $topicData) {
                 $topic = $major->topics()->updateOrCreate(['slug' => $topicData['slug']], Arr::except($topicData, ['games']));
+                
                 foreach ($topicData['games'] as $gameData) {
-                    $game = $topic->games()->updateOrCreate(['slug' => $gameData['slug']], Arr::only($gameData, ['title', 'slug', 'description', 'game_type']));
-                    foreach ($gameData['levels'] as $levelData) {
-                        GameLevel::updateOrCreate(
-                            ['game_id' => $game->id, 'level' => $levelData['level']],
-                            Arr::only($levelData, ['question', 'instruction', 'hint', 'initial_code', 'correct_answer', 'setup_html', 'target_answer', 'target_css'])
+                    // Create Game
+                    $game = $topic->games()->updateOrCreate(
+                        ['slug' => $gameData['slug']], 
+                        Arr::only($gameData, ['title', 'slug', 'description', 'game_type'])
+                    );
+
+                    // Create Levels
+                    if (isset($gameData['levels'])) {
+                        foreach ($gameData['levels'] as $levelData) {
+                            GameLevel::updateOrCreate(
+                                ['game_id' => $game->id, 'level' => $levelData['level']],
+                                Arr::only($levelData, ['question', 'instruction', 'hint', 'initial_code', 'correct_answer', 'setup_html', 'target_answer', 'target_css'])
+                            );
+                        }
+                    }
+
+                    // [LOGIC MATERI: MANUAL VS OTOMATIS]
+                    if (isset($gameData['learning_material'])) {
+                        LearningMaterial::updateOrCreate(
+                            ['game_id' => $game->id],
+                            $gameData['learning_material']
+                        );
+                    } else {
+                        // OTOMATIS UNTUK YANG BELUM DIISI (Hukum, Kedokteran, dll)
+                        LearningMaterial::updateOrCreate(
+                            ['game_id' => $game->id],
+                            [
+                                'title' => 'Pengantar: ' . $gameData['title'],
+                                'video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Placeholder Video
+                                'min_read_seconds' => 5,
+                                'content' => '
+                                    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                                        <h3 class="text-2xl font-bold text-white mb-2">Selamat Datang di ' . $gameData['title'] . '</h3>
+                                        <p class="text-gray-300 leading-relaxed">' . $gameData['description'] . '</p>
+                                    </div>
+                                    <div class="bg-indigo-900/20 p-4 rounded-lg border-l-4 border-indigo-500 mt-4">
+                                        <h4 class="font-bold text-white mb-2">Tujuan Pembelajaran:</h4>
+                                        <ul class="list-disc list-inside text-gray-300 space-y-1">
+                                            <li>Memahami konsep dasar topik ini.</li>
+                                            <li>Melatih logika dan pemecahan masalah.</li>
+                                        </ul>
+                                    </div>
+                                '
+                            ]
                         );
                     }
                 }

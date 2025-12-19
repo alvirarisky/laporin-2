@@ -5,10 +5,13 @@ import { Head, router, usePage } from '@inertiajs/react';
 export default function Index({ auth, templates, laporans }) {
     const { flash } = usePage().props;
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [showUseModal, setShowUseModal] = useState(null); // Menyimpan ID Template
+    const [showUseModal, setShowUseModal] = useState(null); 
     const [selectedLaporan, setSelectedLaporan] = useState("");
     const [replaceExisting, setReplaceExisting] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    // [BARU] State Search
+    const [searchQuery, setSearchQuery] = useState('');
 
     // State form upload template
     const [uploadForm, setUploadForm] = useState({
@@ -18,15 +21,22 @@ export default function Index({ auth, templates, laporans }) {
         is_public: false,
     });
 
-    // State form untuk data laporan baru (Judul, NIM, dll)
+    // State form untuk data laporan baru
     const [useForm, setUseForm] = useState({
         judul: '',
         report_type: 'Makalah',
         mata_kuliah: '',
-        nim: auth.user.nim || '', // Auto-fill kalau user punya data NIM
+        nim: auth.user.nim || '', 
         prodi: '',
         instansi: '',
     });
+
+    // [BARU] Filter Templates berdasarkan Search Query
+    const filteredTemplates = templates.filter((tpl) => 
+        tpl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (tpl.description && tpl.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (tpl.user?.name && tpl.user.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
     // --- HANDLER UPLOAD ---
     const handleUpload = (e) => {
@@ -65,8 +75,6 @@ export default function Index({ auth, templates, laporans }) {
             ? route('templates.apply', { template: showUseModal, laporan: selectedLaporan })
             : route('templates.use', { template: showUseModal });
         
-        // Kalau pilih laporan lama, kirim opsi replace.
-        // Kalau buat baru, kirim data form detailnya.
         const data = selectedLaporan 
             ? { replace_existing: replaceExisting }
             : { ...useForm }; 
@@ -77,7 +85,7 @@ export default function Index({ auth, templates, laporans }) {
                 setShowUseModal(null);
                 setSelectedLaporan("");
                 setReplaceExisting(false);
-                setUseForm({ judul: '', mata_kuliah: '', nim: '', prodi: '', instansi: '' }); // Reset form
+                setUseForm({ judul: '', mata_kuliah: '', nim: '', prodi: '', instansi: '' }); 
             },
             onError: (errors) => {
                 console.error("Template Error:", errors);
@@ -96,7 +104,7 @@ export default function Index({ auth, templates, laporans }) {
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 w-full">
                     <div>
                         <h2 className="font-bold text-2xl text-white leading-tight flex items-center gap-2">
                             <span className="text-indigo-400"></span> Manajemen Template
@@ -105,12 +113,31 @@ export default function Index({ auth, templates, laporans }) {
                             Upload format laporan (.docx) biar gak ngetik ulang format terus.
                         </p>
                     </div>
-                    <button
-                        onClick={() => setShowUploadModal(true)}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] hover:-translate-y-1 transition-all duration-300 border border-indigo-400/30"
-                    >
-                        <span>📤</span> Upload Template
-                    </button>
+
+                    {/* [BARU] SEARCH BAR & BUTTON GROUP */}
+                    <div className="flex w-full sm:w-auto items-center gap-3">
+                        <div className="relative w-full sm:w-64">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg className="h-4 w-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="block w-full pl-10 pr-3 py-2 border border-zinc-700 rounded-xl leading-5 bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:bg-zinc-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out"
+                                placeholder="Cari template..."
+                            />
+                        </div>
+
+                        <button
+                            onClick={() => setShowUploadModal(true)}
+                            className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.4)] hover:bg-indigo-500 hover:shadow-[0_0_25px_rgba(79,70,229,0.6)] hover:-translate-y-1 transition-all duration-300 border border-indigo-400/30"
+                        >
+                            <span>📤</span> <span className="hidden sm:inline">Upload</span>
+                        </button>
+                    </div>
                 </div>
             }
         >
@@ -130,20 +157,27 @@ export default function Index({ auth, templates, laporans }) {
                         </div>
                     )}
 
-                    {templates.length === 0 ? (
+                    {/* [UPDATE] Ganti templates.map jadi filteredTemplates.map */}
+                    {filteredTemplates.length === 0 ? (
                         <div className="bg-[#18181b]/60 backdrop-blur-sm rounded-2xl border border-dashed border-zinc-700 p-16 text-center animate-fade-in">
                             <div className="text-7xl mb-6 opacity-20 grayscale">📂</div>
-                            <h3 className="text-2xl font-bold text-white mb-2">Belum ada template</h3>
+                            <h3 className="text-2xl font-bold text-white mb-2">
+                                {searchQuery ? 'Template tidak ditemukan' : 'Belum ada template'}
+                            </h3>
                             <p className="text-zinc-400 mb-8 max-w-md mx-auto">
-                                Upload template pertamamu (.docx) biar bisa dipake buat generate laporan otomatis.
+                                {searchQuery 
+                                    ? `Tidak ada hasil untuk kata kunci "${searchQuery}". Coba kata lain.` 
+                                    : 'Upload template pertamamu (.docx) biar bisa dipake buat generate laporan otomatis.'}
                             </p>
-                            <button onClick={() => setShowUploadModal(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-800 text-zinc-200 font-semibold rounded-xl border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-all">
-                                Mulai Upload
-                            </button>
+                            {!searchQuery && (
+                                <button onClick={() => setShowUploadModal(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-800 text-zinc-200 font-semibold rounded-xl border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-all">
+                                    Mulai Upload
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {templates.map((template) => (
+                            {filteredTemplates.map((template) => (
                                 <div key={template.id} className="group relative bg-[#18181b]/80 backdrop-blur-md rounded-2xl border border-white/5 p-6 hover:border-indigo-500/50 hover:bg-zinc-900/90 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/0 via-transparent to-purple-500/0 group-hover:from-indigo-500/10 group-hover:to-purple-500/10 rounded-2xl transition-all duration-500"></div>
                                     <div className="relative z-10 flex flex-col h-full">

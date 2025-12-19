@@ -1,5 +1,6 @@
 import Dropdown from '@/Components/Dropdown';
 import Toast from "@/Components/Toast";
+import AiAssistant from '@/Components/AiAssistant'; // [BARU] Import AI Component
 import { Link, usePage } from "@inertiajs/react";
 import { useMemo, useState } from "react";
 
@@ -118,7 +119,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                         </span>
                                     </Dropdown.Trigger>
 
-                                    {/* DROPDOWN CONTENT (Dipaksa Dark Mode via contentClasses) */}
+                                    {/* DROPDOWN CONTENT */}
                                     <Dropdown.Content contentClasses="rounded-lg border border-white/10 bg-[#18181b] text-sm text-zinc-300 shadow-xl ring-1 ring-black ring-opacity-5 py-1">
                                         <div className="px-4 py-3 border-b border-white/5">
                                             <p className="text-xs uppercase tracking-wide text-zinc-500 font-bold">Akun</p>
@@ -204,6 +205,9 @@ export default function AuthenticatedLayout({ header, children }) {
             <main className="relative z-10 mx-auto px-4 pb-10 pt-4 sm:px-6 lg:px-8 animate-fade-in">
                 {children}
             </main>
+
+            {/* [BARU] WIDGET AI FLOATING */}
+            <AiAssistant />
         </div>
     );
 }

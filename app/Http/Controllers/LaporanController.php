@@ -17,6 +17,7 @@ use PhpOffice\PhpWord\Shared\Html; // PENTING: Buat render HTML balik ke Word
 use PhpOffice\PhpWord\Style\Language;
 use Spatie\Browsershot\Browsershot;
 use App\Traits\ParsesWordDocument;
+use Illuminate\Support\Facades\Http;
 
 class LaporanController extends Controller
 {
@@ -80,7 +81,7 @@ class LaporanController extends Controller
                 'logo_path' => $logoPath,
             ]
         );
-        
+
         // Bersihkan field yang tidak masuk tabel laporans
         unset($reportData['logo'], $reportData['template_id']);
 
@@ -90,7 +91,7 @@ class LaporanController extends Controller
         // 2. Generate Sections (Template vs Default)
         if ($request->filled('template_id')) {
             $template = Template::find($request->template_id);
-            
+
             // Cek fisik file template
             if ($template && Storage::disk('public')->exists($template->filepath)) {
                 try {
@@ -238,7 +239,7 @@ class LaporanController extends Controller
             $html = View::make('reports.preview', [
                 'laporan' => $laporan,
                 'css_inline' => $cssContent,
-                'is_pdf_mode' => true 
+                'is_pdf_mode' => true
             ])->render();
 
             $footerHtml = '
@@ -287,7 +288,7 @@ class LaporanController extends Controller
             // Styles
             $phpWord->addTitleStyle(1, ['size' => 14, 'bold' => true], ['spaceBefore' => Converter::cmToTwip(0.8), 'spaceAfter' => Converter::cmToTwip(0.5)]);
             $phpWord->addTitleStyle(0, ['size' => 16, 'bold' => true], ['spaceAfter' => Converter::cmToTwip(0.8), 'alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER]);
-            
+
             // --- SECTION 1: COVER ---
             $coverSection = $phpWord->addSection([
                 'marginTop' => Converter::cmToTwip(3),
@@ -313,13 +314,13 @@ class LaporanController extends Controller
             $coverSection->addText(htmlspecialchars($laporan->nama) . ' (' . htmlspecialchars($laporan->nim) . ')', ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
             $coverSection->addText('Dosen Pengampu:', ['size' => 12], $paraStyleCenter);
             $coverSection->addText(htmlspecialchars($laporan->dosen_pembimbing), ['size' => 12, 'bold' => true], $paraStyleCenterLarge);
-            
+
             $coverSection->addTextBreak(2);
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->prodi)), $boldUpper, $paraStyleCenter);
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->instansi)), $boldUpper, $paraStyleCenter);
             $coverSection->addText(htmlspecialchars(strtoupper($laporan->kota)), $boldUpper, $paraStyleCenter);
             $coverSection->addText(htmlspecialchars($laporan->tahun_ajaran), $boldUpper, ['align' => 'center', 'spaceAfter' => 0]);
-            
+
             $coverSection->addPageBreak();
 
             // --- SECTION 2: DAFTAR ISI ---
@@ -364,19 +365,15 @@ class LaporanController extends Controller
 
             $filename = 'laporan-' . \Illuminate\Support\Str::slug($laporan->judul) . '.docx';
 
-            ob_end_clean();
-            header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-            header('Content-Disposition: attachment;filename="' . $filename . '"');
-            header('Cache-Control: max-age=0');
-
-            $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
-            $objWriter->save('php://output');
-            exit;
-
+            return response()->streamDownload(function () use ($phpWord) {
+                $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
+                $objWriter->save('php://output');
+            }, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'Cache-Control' => 'max-age=0',
+            ]);
         } catch (\Exception $e) {
-            ob_end_clean();
-            report($e);
-            return redirect()->back()->with('error', 'Gagal membuat file DOCX: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal generate DOCX: ' . $e->getMessage());
         }
     }
 
@@ -405,6 +402,36 @@ class LaporanController extends Controller
         return view('reports.preview', ['laporan' => $laporan]);
     }
 
+    public function generateWithAi(Request $request)
+    {
+        $request->validate([
+            'prompt' => 'required|string',
+        ]);
+
+        $apiKey = env('GEMINI_API_KEY');
+        $prompt = $request->input('prompt');
+
+        // Manggil API Gemini
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}", [
+            'contents' => [
+                [
+                    'parts' => [
+                        ['text' => $prompt]
+                    ]
+                ]
+            ]
+        ]);
+
+        if ($response->successful()) {
+            // Ambil hasil teks dari struktur JSON Gemini
+            $result = $response->json('candidates.0.content.parts.0.text');
+            return response()->json(['result' => $result]);
+        }
+
+        return response()->json(['error' => 'Gagal narik data AI, bray!'], 500);
+    }
     // --- Helper Methods ---
 
     private function convertImagesToBase64($html)
@@ -415,7 +442,7 @@ class LaporanController extends Controller
             if (strpos($src, 'storage/') !== false) {
                 $relativePath = substr($src, strpos($src, 'storage/') + 8);
                 $fullPath = storage_path('app/public/' . $relativePath);
-                
+
                 if (file_exists($fullPath)) {
                     $type = pathinfo($fullPath, PATHINFO_EXTENSION);
                     $data = file_get_contents($fullPath);

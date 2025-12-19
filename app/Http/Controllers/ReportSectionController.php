@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportSectionController extends Controller
 {
-    /**
-     * Menyimpan bab atau sub-bab baru
-     */
     public function store(Request $request, Laporan $laporan)
     {
         $this->authorize('update', $laporan);
@@ -22,62 +19,57 @@ class ReportSectionController extends Controller
             'order' => 'nullable|integer',
         ]);
 
-        // Tentukan order jika tidak diberikan
         if (!isset($validated['order'])) {
+            $query = ReportSection::where('laporan_id', $laporan->id);
             if ($validated['parent_id']) {
-                // Sub-bab: ambil order terakhir dari sub-bab dengan parent yang sama
-                $lastOrder = ReportSection::where('laporan_id', $laporan->id)
-                    ->where('parent_id', $validated['parent_id'])
-                    ->max('order') ?? 0;
-                $validated['order'] = $lastOrder + 1;
+                $query->where('parent_id', $validated['parent_id']);
             } else {
-                // Bab utama: ambil order terakhir dari root sections
-                $lastOrder = ReportSection::where('laporan_id', $laporan->id)
-                    ->whereNull('parent_id')
-                    ->max('order') ?? 0;
-                $validated['order'] = $lastOrder + 1;
+                $query->whereNull('parent_id');
             }
+            $validated['order'] = ($query->max('order') ?? 0) + 1;
         }
 
         $validated['laporan_id'] = $laporan->id;
-        $validated['content'] = '';
+        $validated['content'] = $validated['content'] ?? '';
 
         $section = ReportSection::create($validated);
 
-        return back()->with('success', 'Bab/Sub-bab berhasil ditambahkan!');
+        // Return JSON agar frontend tidak reload/redirect
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Bab berhasil dibuat', 'section' => $section]);
+        }
+
+        return back()->with('success', 'Bab berhasil ditambahkan!');
     }
 
-    /**
-     * Mengupdate konten atau judul dari satu bab (section) laporan.
-     */
     public function update(Request $request, ReportSection $section)
     {
-        // Memastikan hanya pemilik laporan yang bisa mengedit
         $this->authorize('update', $section->laporan);
 
+        // Validasi: Gunakan 'sometimes' agar kalau cuma kirim content, title gak error
         $validated = $request->validate([
             'content' => 'nullable|string',
-            'title' => 'nullable|string|max:255',
+            'title'   => 'sometimes|required|string|max:255',
         ]);
 
         $section->update($validated);
 
-        // Redirect kembali ke halaman editor dengan pesan sukses
-        return back()->with('success', 'Perubahan pada bab "'.$section->title.'" berhasil disimpan!');
+        // [FIX UTAMA] Jangan return back()! Gunakan JSON.
+        return response()->json([
+            'message' => 'Berhasil disimpan',
+            'section' => $section
+        ]);
     }
 
-    /**
-     * Menghapus bab atau sub-bab
-     */
     public function destroy(ReportSection $section)
     {
         $this->authorize('update', $section->laporan);
-
-        // Hapus semua sub-bab terlebih dahulu (cascade)
         $section->children()->delete();
-        
         $section->delete();
 
-        return back()->with('success', 'Bab/Sub-bab berhasil dihapus!');
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Terhapus']);
+        }
+        return back()->with('success', 'Bab dihapus!');
     }
 }

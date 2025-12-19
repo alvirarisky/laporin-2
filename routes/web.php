@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\LearningController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportSectionController;
 use App\Http\Controllers\SectionController;
@@ -39,7 +41,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         $user = Auth::user();
         return Inertia::render('Dashboard', [
-            // UPDATE: Sorting berdasarkan updated_at biar draft terakhir naik ke atas
             'laporans' => $user->laporans()->with('sections')->latest('updated_at')->get(),
             'templates' => $user->templates()->get(),
         ]);
@@ -59,13 +60,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/laporan/preview-live', [LaporanController::class, 'previewLive'])->name('laporan.preview.live');
     Route::get('/laporan/{laporan}/preview', [LaporanController::class, 'preview'])->name('laporan.preview');
 
+    // --- RUTE FITUR AI ---
+    Route::post('/ai-chat', [AiChatController::class, 'chat'])->name('ai.chat');
+    Route::get('/laporan-ai', [LaporanController::class, 'aiAssistant'])->name('laporan.ai-assistant');
+    Route::post('/laporan-ai/full-generate', [LaporanController::class, 'fullGenerateWithAi'])->name('ai.full-generate');
+    Route::post('/ai/generate-content', [LaporanController::class, 'generateWithAi'])->name('ai.generate');
+
     // --- RUTE SECTION / BAB ---
-    // CRUD Section (Pake ReportSectionController)
     Route::post('/laporan/{laporan}/sections', [ReportSectionController::class, 'store'])->name('sections.store');
     Route::put('/sections/{section}', [ReportSectionController::class, 'update'])->name('sections.update');
     Route::delete('/sections/{section}', [ReportSectionController::class, 'destroy'])->name('sections.destroy');
-
-    // Drag & Drop Reorder (Pake SectionController yang baru kita buat)
     Route::post('/sections/reorder', [SectionController::class, 'reorder'])->name('sections.reorder');
 
     // --- Rute Fitur Template ---
@@ -80,7 +84,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- RUTE FITUR QUESTIFY ---
     Route::get('/questify', [GameController::class, 'index'])->name('questify.index');
+    Route::get('/questify/{game:slug}/learning', [LearningController::class, 'show'])->name('questify.learning');
     Route::get('/questify/{game:slug}', [GameController::class, 'show'])->name('questify.show');
+
+    // [BARU] Route API Check Answer (Wajib ada biar Game.jsx jalan)
+    Route::post('/api/questify/check-answer', [GameController::class, 'checkAnswer'])->name('api.game.checkAnswer');
 });
 
 require __DIR__ . '/auth.php';
